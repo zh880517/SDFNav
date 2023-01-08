@@ -1,11 +1,10 @@
 using System.Collections.Generic;
-using UnityEditor;
 using UnityEngine;
 using UnityEngine.AI;
 
 namespace SDFNav.Editor
 {
-    public static class NavMeshExporter
+    public static class NavMeshExportUtil
     {
         private static void ReplaceIndice(int[] indices, int value, int newIdx)
         {
@@ -16,7 +15,7 @@ namespace SDFNav.Editor
             }
         }
 
-        public static MeshData NavToMesh(float reachHeight = 0.5f, float maxAngle = 30)
+        public static MeshData NavToMesh(float reachHeight = 0.5f)
         {
             NavMeshTriangulation triangulation = NavMesh.CalculateTriangulation();
             triangulation = DeDuplicate(triangulation);
@@ -38,10 +37,6 @@ namespace SDFNav.Editor
                 //过滤掉空中的三角形
                 if (center.y > reachHeight)
                     continue;
-                Vector3 normal = GetTriangleNormal(a, b, c);
-                float angle = 90 - Vector3.Angle(normal, new Vector3(normal.x, 0, normal.z));
-                //if (angle > maxAngle)
-                //    continue;
                 triangles.Add(triangle);
             }
             var mesh = new MeshData
@@ -140,6 +135,40 @@ namespace SDFNav.Editor
         {
             Vector3 ab = Vector3.LerpUnclamped(a, b, 0.5f);
             return Vector3.LerpUnclamped(ab, c, 0.5f);
+        }
+        
+        public static SubMeshData SelectMaxAreaSubMesh(List<SubMeshData> subMeshs)
+        {
+            float maxArea = 0;
+            SubMeshData subMesh = null;
+            foreach (var s in subMeshs)
+            {
+                float area = CalcSubMeshArea(s);
+                if (area > maxArea)
+                {
+                    maxArea = area;
+                    subMesh = s;
+                }
+            }
+            return subMesh;
+        }
+
+        public static float CalcSubMeshArea(SubMeshData subMesh)
+        {
+            var mesh = subMesh.Mesh;
+            float area = 0;
+            foreach (var idx in subMesh.TriangleIndices)
+            {
+                var t = mesh.Triangles[idx];
+                
+                float a = Vector3.Distance(mesh.Vertices[t.A], mesh.Vertices[t.B]);
+                float b = Vector3.Distance(mesh.Vertices[t.C], mesh.Vertices[t.B]);
+                float c = Vector3.Distance(mesh.Vertices[t.A], mesh.Vertices[t.C]);
+
+                float p = (a + b + c) / 2;//半周长
+                area += Mathf.Sqrt(p * (p - a) * (p - b) * (p - c));//海伦公式计算三角形面积
+            }
+            return area;
         }
 
         public static Vector3 GetTriangleNormal(Vector3 a, Vector3 b, Vector3 c)

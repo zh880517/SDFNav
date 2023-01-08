@@ -9,20 +9,10 @@ namespace SDFNav.Editor
         [MenuItem("Tools/test")]
         static void Test()
         {
-            var mesh = NavMeshExporter.NavToMesh();
-            var subMeshs = NavMeshExporter.SplitSubMesh(mesh);
-            int maxCout = 0;
-            int idx = -1;
-            for (int i = 0; i < subMeshs.Count; ++i)
-            {
-                int count = subMeshs[i].TriangleIndices.Count;
-                if (count > maxCout)
-                {
-                    maxCout = count;
-                    idx = i;
-                }
-            }
-            var savemesh = ToMesh(subMeshs[idx]);
+            var mesh = NavMeshExportUtil.NavToMesh();
+            var subMeshs = NavMeshExportUtil.SplitSubMesh(mesh);
+            var maxSubMesh = NavMeshExportUtil.SelectMaxAreaSubMesh(subMeshs);
+            var savemesh = ToMesh(maxSubMesh);
             AssetDatabase.CreateAsset(savemesh, "Assets/Nav1.mesh");
         }
 
@@ -30,7 +20,7 @@ namespace SDFNav.Editor
         static void SaveNavMeshToMesh()
         {
             NavMeshTriangulation triangulation = NavMesh.CalculateTriangulation();
-            triangulation = NavMeshExporter.DeDuplicate(triangulation);
+            triangulation = NavMeshExportUtil.DeDuplicate(triangulation);
             var mesh = ToMesh(triangulation);
             AssetDatabase.CreateAsset(mesh, "Assets/Nav.mesh");
         }
