@@ -70,6 +70,7 @@ namespace SDFNav.Editor
                 }
             }
             NavMeshTriangulation newmesh = new NavMeshTriangulation();
+            //去除重复的点
             List<Vector3> vertices = new List<Vector3>(triangulation.vertices);
             for (int i=vertices.Count-1; i>=0; --i)
             {
