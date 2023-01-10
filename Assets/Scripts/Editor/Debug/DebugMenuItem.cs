@@ -6,7 +6,7 @@ namespace SDFNav.Editor
 {
     public static class DebugMenuItem
     {
-        [MenuItem("Tools/test")]
+        [MenuItem("Tools/生成SDF")]
         static void Test()
         {
             var mesh = NavMeshExportUtil.NavToMesh();
@@ -14,6 +14,15 @@ namespace SDFNav.Editor
             var maxSubMesh = NavMeshExportUtil.SelectMaxAreaSubMesh(subMeshs);
             var savemesh = ToMesh(maxSubMesh);
             AssetDatabase.CreateAsset(savemesh, "Assets/Nav1.mesh");
+            var sdfData = SDFExportUtil.SubMeshToSDF(maxSubMesh);
+            if (sdfData != null)
+            {
+                var texture = SDFExportUtil.ToTexture(sdfData);
+                var bytes = texture.EncodeToPNG();
+                string path = "Assets/sdf.png";
+                System.IO.File.WriteAllBytes(path, bytes);
+                AssetDatabase.ImportAsset(path);
+            }
         }
 
         [MenuItem("Tools/NavMesh生成Mesh")]
