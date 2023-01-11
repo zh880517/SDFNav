@@ -12,6 +12,9 @@ namespace SDFNav.Editor
             var mesh = NavMeshExportUtil.NavToMesh();
             var subMeshs = NavMeshExportUtil.SplitSubMesh(mesh);
             var maxSubMesh = NavMeshExportUtil.SelectMaxAreaSubMesh(subMeshs);
+            var edge = NavMeshExportUtil.SubMeshToEdgeByOffset(maxSubMesh);
+            DebugDrawWindow.DrawEdge(edge);
+            /*
             var savemesh = ToMesh(maxSubMesh);
             AssetDatabase.CreateAsset(savemesh, "Assets/Nav1.mesh");
             var sdfData = SDFExportUtil.SubMeshToSDF(maxSubMesh);
@@ -23,6 +26,7 @@ namespace SDFNav.Editor
                 System.IO.File.WriteAllBytes(path, bytes);
                 AssetDatabase.ImportAsset(path);
             }
+            */
         }
 
         [MenuItem("Tools/NavMesh生成Mesh")]

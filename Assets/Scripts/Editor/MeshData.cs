@@ -13,6 +13,18 @@ namespace SDFNav.Editor
         {
             return A == index || B == index || C == index;
         }
+
+        public int GetSameSide(int a, int b)
+        {
+            if ((a == A && b == B) /*|| (b == A && a == B)*/)
+                return 0;
+            if ((a == B && b == C)/* || (b == B && a == C)*/)
+                return 1;
+            if ((a == C && b == A)/* || (b == C && a == A)*/)
+                return 3;
+
+            return -1;
+        }
     }
     public class MeshData
     {
@@ -24,5 +36,15 @@ namespace SDFNav.Editor
     {
         public MeshData Mesh;
         public List<int> TriangleIndices = new List<int>();
+    }
+    public struct SegmentIndice
+    {
+        public int From;
+        public int To;
+    }
+    public class EdgeData
+    {
+        public Vector2[] Vertices;
+        public List<SegmentIndice> Segments = new List<SegmentIndice>();
     }
 }

@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 using UnityEngine.AI;
 
@@ -61,7 +62,7 @@ namespace SDFNav.Editor
                     if (i == j || duplicate.Contains(j))
                         continue;
                     Vector3 diff = p - triangulation.vertices[j];
-                    if (diff.sqrMagnitude < 0.0001)
+                    if (diff.sqrMagnitude < 0.001)
                     {
                         duplicate.Add(j);
                         //将重复的点索引替换掉
@@ -172,9 +173,56 @@ namespace SDFNav.Editor
             return area;
         }
 
-        public static Vector3 GetTriangleNormal(Vector3 a, Vector3 b, Vector3 c)
+        public static EdgeData SubMeshToEdgeByOffset(SubMeshData subMesh)
         {
-            return Vector3.Cross(b-a, c-a);
+            var mesh = subMesh.Mesh;
+            EdgeData edgeData = new EdgeData { Vertices = mesh.Vertices.Select(it => new Vector2(it.x, it.z)).ToArray() };
+            List<SegmentIndice> segments = new List<SegmentIndice>();
+            for (int i = 0; i < subMesh.TriangleIndices.Count; ++i)
+            {
+                var t = mesh.Triangles[subMesh.TriangleIndices[i]];
+                if (!segments.Exists(it=> (t.A == it.From && t.B == it.To) || t.A == it.To && t.B == it.From))
+                {
+                    segments.Add(new SegmentIndice { From = t.A, To = t.B });
+                }
+                if (!segments.Exists(it => (t.B == it.From && t.C == it.To) || t.B == it.To && t.C == it.From))
+                {
+                    segments.Add(new SegmentIndice { From = t.B, To = t.C });
+                }
+                if (!segments.Exists(it => (t.C == it.From && t.A == it.To) || t.C == it.To && t.A == it.From))
+                {
+                    segments.Add(new SegmentIndice { From = t.C, To = t.A });
+                }
+            }
+
+            foreach (var seg in segments)
+            {
+                Vector2 from = edgeData.Vertices[seg.From];
+                Vector2 to = edgeData.Vertices[seg.To];
+                Vector2 normal = to - from;
+                Vector2 center = from + normal * 0.5f;
+
+                normal = new Vector2(-normal.y, normal.x);
+                normal.Normalize();
+                if (!IsPointInSubMesh(center + normal * 0.05f, subMesh))
+                {
+                    edgeData.Segments.Add(seg);
+                }
+            }
+            return edgeData;
+        }
+        public static bool IsPointInSubMesh(Vector2 p, SubMeshData subMesh)
+        {
+            foreach (var idx in subMesh.TriangleIndices )
+            {
+                var t = subMesh.Mesh.Triangles[idx];
+                var a = subMesh.Mesh.Vertices[t.A];
+                var b = subMesh.Mesh.Vertices[t.B];
+                var c = subMesh.Mesh.Vertices[t.C];
+                if (SDFUtil.IsInTriangle(p, new Vector2(a.x, a.z), new Vector2(b.x, b.z), new Vector2(c.x, c.z)))
+                    return true;
+            }
+            return false;
         }
 
         public static bool IsTriangleConnect(TriangleIndice a, TriangleIndice b)
