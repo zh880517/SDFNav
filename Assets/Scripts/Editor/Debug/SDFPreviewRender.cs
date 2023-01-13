@@ -1,0 +1,78 @@
+using UnityEngine;
+using UnityEngine.Rendering;
+
+namespace SDFNav.Editor
+{
+    [System.Serializable]
+    public class SDFPreviewRender
+    {
+        public Texture SDFTexture;
+        public Mesh PlaneMesh;
+        public Material Mat;
+
+        public void Build(SDFData data)
+        {
+            Clear();
+            SDFTexture = SDFExportUtil.ToTexture(data);
+            SDFTexture.hideFlags = HideFlags.HideAndDontSave;
+            Vector3 origin = new Vector3(data.Origin.x, 0, data.Origin.y);
+            float width = data.Width * data.Grain;
+            float height = data.Height * data.Grain;
+            PlaneMesh = new Mesh
+            {
+                hideFlags = HideFlags.HideAndDontSave,
+                vertices = new Vector3[]
+                {
+                    origin,
+                    origin + new Vector3(0, 0, width),
+                    origin + new Vector3(height, 0, width),
+                    origin + new Vector3(height, 0, 0),
+                },
+                uv = new Vector2[]
+                {
+                    new Vector2(0, 1),
+                    new Vector2(0, 0),
+                    new Vector2(1, 0),
+                    new Vector2(1, 1),
+                },
+                triangles = new int[]
+                {
+                    0, 1, 2,
+                    2, 3, 0,
+                }
+            };
+            PlaneMesh.RecalculateNormals();
+            var shader = Shader.Find("SDFPreview");
+            if (shader)
+            {
+                Mat = new Material(shader);
+                Mat.hideFlags = HideFlags.HideAndDontSave;
+                Mat.SetTexture("_TextureSample0", SDFTexture);
+                Mat.SetColor("_Color0", new Color(0, 0, 1, 0.5f));
+                Mat.SetColor("_Color1", new Color(1, 0, 0, 0.5f));
+            }
+        }
+
+        public void OnSceneGUI()
+        {
+            if (Event.current.type != EventType.Repaint)
+                return;
+            if (Mat && PlaneMesh)
+            {
+                CommandBuffer commandBuffer = new CommandBuffer();
+                commandBuffer.DrawMesh(PlaneMesh, Matrix4x4.identity, Mat);
+                Graphics.ExecuteCommandBuffer(commandBuffer);
+            }
+        }
+
+        public void Clear()
+        {
+            if (SDFTexture)
+                Object.DestroyImmediate(SDFTexture);
+            if (PlaneMesh)
+                Object.DestroyImmediate(PlaneMesh);
+            if (Mat)
+                Object.DestroyImmediate(Mat);
+        }
+    }
+}

@@ -37,11 +37,18 @@ namespace SDFNav.Editor
         public MeshData Mesh;
         public List<int> TriangleIndices = new List<int>();
     }
+    [System.Serializable]
     public struct SegmentIndice
     {
         public int From;
         public int To;
+
+        public bool IsEquals(SegmentIndice other)
+        {
+            return From == other.From && To == other.To;
+        }
     }
+    [System.Serializable]
     public class EdgeData
     {
         public Vector2[] Vertices;

@@ -1,88 +1,40 @@
-using System.Collections.Generic;
 using UnityEngine;
 
 namespace SDFNav.Editor
 {
+    public struct EdgeSDFResult
+    {
+        public float SDF;
+        public SegmentIndice Segment;
+        public SegmentIndice ConnectSegement;//距离点相同的线段
+        public Vector2 Point;
+    }
     public static class SDFExportUtil
     {
-        public class Triangle
+        public static float Cross(Vector2 lhs, Vector2 rhs)
         {
-            public Vector2 A;
-            public Vector2 B;
-            public Vector2 C;
-
-            public float SDF(Vector2 point)
-            {
-                return SDFUtil.TriangleSDF(point, A, B, C);
-            }
+            return lhs.x * rhs.y - lhs.y * rhs.x;
         }
 
-        public static Vector2 ToV2(Vector3 v)
+        public static float PointOnSegmentSide(Vector2 p, Vector2 a, Vector2 b)
         {
-            return new Vector2(v.x, v.z);
+            Vector2 ap = p - a;
+            Vector2 ab = b - a;
+            return Mathf.Sign(Cross(ap, ab));
         }
 
-        public static List<Triangle> SubMeshToTriangles(SubMeshData subMesh)
+
+        public static float SqrMagnitudeToSegment(Vector2 point, Vector2 from, Vector2 to)
         {
-            List<Triangle> triangles = new List<Triangle>(subMesh.TriangleIndices.Count);
-            var mesh = subMesh.Mesh;
-            foreach (var idx in subMesh.TriangleIndices)
-            {
-                var t = mesh.Triangles[idx];
-                Triangle triangle = new Triangle 
-                { 
-                    A = ToV2(mesh.Vertices[t.A]),
-                    B = ToV2(mesh.Vertices[t.B]),
-                    C = ToV2(mesh.Vertices[t.C]),
-                };
-                triangles.Add(triangle);
-            }
-            return triangles;
+            Vector2 ap = point - from;
+            Vector2 ab = to - from;
+            float h = Mathf.Clamp01(Vector2.Dot(ap, ab) / Vector2.Dot(ab, ab));
+            return (ap - h * ab).sqrMagnitude;
         }
 
-        public static float SDF(Vector2 p, List<Triangle> triangles)
+        public static SDFData EdgeToSDF(EdgeData edgeData, float grain = 0.25f)
         {
-            //此处计算错误，需要转化成多边形处理
-            float sdf = triangles[0].SDF(p);
-            for (int i=1; i<triangles.Count; ++i)
-            {
-                sdf = Mathf.Min(triangles[i].SDF(p), sdf);
-            }
-            return sdf;
-        }
-
-        public static Rect CalcBounds(List<Triangle> triangles, float expand)
-        {
-            float xMin = float.MaxValue;
-            float yMin = float.MaxValue;
-            float xMax = float.MinValue;
-            float yMax = float.MinValue;
-            foreach (var t in triangles)
-            {
-                xMin = Mathf.Min(xMin, t.A.x);
-                xMin = Mathf.Min(xMin, t.B.x);
-                xMin = Mathf.Min(xMin, t.C.x);
-
-                xMax = Mathf.Max(xMax, t.A.x);
-                xMax = Mathf.Max(xMax, t.B.x);
-                xMax = Mathf.Max(xMax, t.C.x);
-
-                yMin = Mathf.Min(yMin, t.A.y);
-                yMin = Mathf.Min(yMin, t.B.y);
-                yMin = Mathf.Min(yMin, t.C.y);
-
-                yMax = Mathf.Max(yMax, t.A.y);
-                yMax = Mathf.Max(yMax, t.B.y);
-                yMax = Mathf.Max(yMax, t.C.y);
-            }
-
-            return Rect.MinMaxRect(xMin - expand, yMin - expand, xMax + expand, yMax + expand);
-        }
-
-        public static SDFData SubMeshToSDF(SubMeshData subMesh, float grain = 0.25f)
-        {
-            List<Triangle> triangles = SubMeshToTriangles(subMesh);
-            var rect = CalcBounds(triangles, 1);
+            var rect = CalcBounds(edgeData, 1);
             Vector2 size = rect.size / grain;
             if (size.x < 1 || size.y < 1)
                 return null;
@@ -94,22 +46,107 @@ namespace SDFNav.Editor
             short[] data = new short[width * height];
             for (int i = 0; i < width; ++i)
             {
+                UnityEditor.EditorUtility.DisplayProgressBar("生成", $"生成SDF 行 {i + 1}", i/(float)width);
                 for (int j = 0; j < height; ++j)
                 {
                     Vector2 pos = min + new Vector2(i * grain, j * grain);
-                    float val = SDF(pos, triangles);
-                    val = (val / maxDistance) * short.MaxValue;
+                    var result = SDF(pos, edgeData);
+                    float val = (result.SDF / maxDistance) * short.MaxValue;
                     data[i + width * j] = (short)val;
                 }
             }
+            UnityEditor.EditorUtility.ClearProgressBar();
             SDFData sdfData = new SDFData();
             sdfData.Init(width, height, grain, scale, min, data);
             return sdfData;
         }
 
+        public static EdgeSDFResult SDF(Vector2 p, EdgeData edgeData)
+        {
+            EdgeSDFResult result = new EdgeSDFResult{Point = p };
+            float sqrMagnitude = float.MaxValue;
+            for (int i=0; i< edgeData.Segments.Count; ++i)
+            {
+                var seg = edgeData.Segments[i];
+                var from = edgeData.Vertices[seg.From];
+                var to = edgeData.Vertices[seg.To];
+                float sqrM = SqrMagnitudeToSegment(p, from, to);
+                //如果点在线上就直接返回
+                if (Mathf.Abs(sqrM) < 0.0001f)
+                {
+                    result.Segment = seg;
+                    result.SDF = 0;
+                    return result;
+                }
+                float diff = sqrM - sqrMagnitude;
+                if (Mathf.Abs(diff) < 0.0001f)
+                {
+                    result.ConnectSegement = seg;
+                    continue;
+                }
+                if (diff < 0)
+                {
+                    result.Segment = seg;
+                    result.ConnectSegement = seg;
+                    sqrMagnitude = sqrM;
+                }
+            }
+            if (!result.Segment.IsEquals(result.ConnectSegement))
+            {
+                Vector2 a1 = edgeData.Vertices[result.Segment.From];
+                Vector2 b1 = edgeData.Vertices[result.Segment.To];
+                Vector2 a2 = edgeData.Vertices[result.ConnectSegement.From];
+                Vector2 b2 = edgeData.Vertices[result.ConnectSegement.To];
+                float side1 = PointOnSegmentSide(p, a1, b1);
+                float side2 = PointOnSegmentSide(p, a2, b2);
+                if (side1 != side2)
+                {
+                    result.SDF = -Mathf.Sqrt(sqrMagnitude);
+                    return result;
+                }
+            }
+            {
+                Vector2 from = edgeData.Vertices[result.Segment.From];
+                Vector2 to = edgeData.Vertices[result.Segment.To];
+                Vector2 ap = p - from;
+                Vector2 ab = to - from;
+                float cross = Cross(ap, ab);
+                if (cross < 0)
+                    result.SDF = -Mathf.Sqrt(sqrMagnitude);
+                else
+                    result.SDF = Mathf.Sqrt(sqrMagnitude);
+                return result;
+            }
+        }
+
+        public static Rect CalcBounds(EdgeData edgeData, float expand)
+        {
+            float xMin = float.MaxValue;
+            float yMin = float.MaxValue;
+            float xMax = float.MinValue;
+            float yMax = float.MinValue;
+            foreach (var seg in edgeData.Segments)
+            {
+                var from = edgeData.Vertices[seg.From];
+                var to = edgeData.Vertices[seg.To];
+                xMin = Mathf.Min(xMin, from.x);
+                xMin = Mathf.Min(xMin, to.x);
+
+                xMax = Mathf.Max(xMax, from.x);
+                xMax = Mathf.Max(xMax, to.x);
+
+                yMin = Mathf.Min(yMin, from.y);
+                yMin = Mathf.Min(yMin, to.y);
+
+                yMax = Mathf.Max(yMax, from.y);
+                yMax = Mathf.Max(yMax, to.y);
+            }
+            return Rect.MinMaxRect(xMin - expand, yMin - expand, xMax + expand, yMax + expand);
+        }
+
         public static Texture2D ToTexture(SDFData sdf)
         {
-            Texture2D texture = new Texture2D(sdf.Width, sdf.Height);
+            Texture2D texture = new Texture2D(sdf.Width, sdf.Height, TextureFormat.Alpha8, false);
             for (int i = 0; i < sdf.Width; ++i)
             {
                 for (int j = 0; j < sdf.Height; ++j)
@@ -117,11 +154,11 @@ namespace SDFNav.Editor
                     short val = sdf[i, j];
                     if (val <= 0)
                     {
-                        texture.SetPixel(i, j, Color.red);
+                        texture.SetPixel(i, j, new Color(1, 1, 1, 0));
                     }
                     else
                     {
-                        texture.SetPixel(i, j, Color.green);
+                        texture.SetPixel(i, j, new Color(1, 1, 1, 1));
                     }
                 }
             }

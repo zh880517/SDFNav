@@ -14,6 +14,17 @@ namespace SDFNav.Editor
             var maxSubMesh = NavMeshExportUtil.SelectMaxAreaSubMesh(subMeshs);
             var edge = NavMeshExportUtil.SubMeshToEdgeByOffset(maxSubMesh);
             DebugDrawWindow.DrawEdge(edge);
+
+            var sdfData = SDFExportUtil.EdgeToSDF(edge);
+            DebugDrawWindow.DrawSDF(sdfData);
+            //if (sdfData != null)
+            //{
+            //    var texture = SDFExportUtil.ToTexture(sdfData);
+            //    var bytes = texture.EncodeToPNG();
+            //    string path = "Assets/sdf.png";
+            //    System.IO.File.WriteAllBytes(path, bytes);
+            //    AssetDatabase.ImportAsset(path);
+            //}
             /*
             var savemesh = ToMesh(maxSubMesh);
             AssetDatabase.CreateAsset(savemesh, "Assets/Nav1.mesh");

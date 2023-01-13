@@ -7,6 +7,11 @@ namespace SDFNav.Editor
 {
     public static class NavMeshExportUtil
     {
+
+        public static Vector2 ToV2(Vector3 v)
+        {
+            return new Vector2(v.x, v.z);
+        }
         private static void ReplaceIndice(int[] indices, int value, int newIdx)
         {
             for (int i=0; i<indices.Length; ++i)
@@ -176,7 +181,7 @@ namespace SDFNav.Editor
         public static EdgeData SubMeshToEdgeByOffset(SubMeshData subMesh)
         {
             var mesh = subMesh.Mesh;
-            EdgeData edgeData = new EdgeData { Vertices = mesh.Vertices.Select(it => new Vector2(it.x, it.z)).ToArray() };
+            EdgeData edgeData = new EdgeData { Vertices = mesh.Vertices.Select(it => ToV2(it)).ToArray() };
             List<SegmentIndice> segments = new List<SegmentIndice>();
             for (int i = 0; i < subMesh.TriangleIndices.Count; ++i)
             {
