@@ -24,16 +24,16 @@ namespace SDFNav.Editor
                 vertices = new Vector3[]
                 {
                     origin,
-                    origin + new Vector3(0, 0, width),
-                    origin + new Vector3(height, 0, width),
-                    origin + new Vector3(height, 0, 0),
+                    origin + new Vector3(0, 0, height),
+                    origin + new Vector3(width, 0, height),
+                    origin + new Vector3(width, 0, 0),
                 },
                 uv = new Vector2[]
                 {
-                    new Vector2(0, 1),
                     new Vector2(0, 0),
-                    new Vector2(1, 0),
+                    new Vector2(0, 1),
                     new Vector2(1, 1),
+                    new Vector2(1, 0),
                 },
                 triangles = new int[]
                 {
@@ -48,8 +48,9 @@ namespace SDFNav.Editor
                 Mat = new Material(shader);
                 Mat.hideFlags = HideFlags.HideAndDontSave;
                 Mat.SetTexture("_TextureSample0", SDFTexture);
-                Mat.SetColor("_Color0", new Color(0, 0, 1, 0.5f));
-                Mat.SetColor("_Color1", new Color(1, 0, 0, 0.5f));
+                Mat.SetColor("_Color0", new Color(1, 0, 0, 0.5f));
+                Mat.SetColor("_Color1", new Color(0, 1, 0, 0.5f));
+                Mat.doubleSidedGI = true;
             }
         }
 

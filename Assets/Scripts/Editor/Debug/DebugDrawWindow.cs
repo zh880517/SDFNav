@@ -51,6 +51,10 @@ namespace SDFNav.Editor
                     SDFTest();
                 }
             }
+            if (SDFPreview.SDFTexture)
+            {
+                GUILayout.Label(SDFPreview.SDFTexture, GUILayout.MinHeight(512), GUILayout.MinWidth(512));
+            }
         }
 
         private void OnSceneGUI(SceneView view)

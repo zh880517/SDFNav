@@ -5,7 +5,7 @@ Shader "SDFPreview"
 	Properties
 	{
 		_TextureSample0("Texture Sample 0", 2D) = "white" {}
-		_Color0("Color 0", Color) = (0,0,0,0)
+		_Color0("Color 0", Color) = (1,1,1,1)
 		_Color1("Color 1", Color) = (0,0,0,0)
 		[HideInInspector] _texcoord( "", 2D ) = "white" {}
 

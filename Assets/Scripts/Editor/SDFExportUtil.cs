@@ -154,14 +154,15 @@ namespace SDFNav.Editor
                     short val = sdf[i, j];
                     if (val <= 0)
                     {
-                        texture.SetPixel(i, j, new Color(1, 1, 1, 0));
+                        texture.SetPixel(i, j, new Color(1, 0, 0, 0));
                     }
                     else
                     {
-                        texture.SetPixel(i, j, new Color(1, 1, 1, 1));
+                        texture.SetPixel(i, j, new Color(0, 1, 0, 1));
                     }
                 }
             }
+            texture.Apply();
             return texture;
         }
     }
