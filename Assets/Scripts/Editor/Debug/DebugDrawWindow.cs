@@ -6,10 +6,10 @@ namespace SDFNav.Editor
     public class DebugDrawWindow : EditorWindow
     {
         public EdgeData Edge;
-
         public Transform TestPoint;
         public EdgeSDFResult SDFResult;
         public SDFPreviewRender SDFPreview = new SDFPreviewRender();
+        public DebugPathFinder PathFinderDebug = new DebugPathFinder();
         public static void DrawEdge(EdgeData edge)
         {
             var window = GetWindow<DebugDrawWindow>();
@@ -21,6 +21,7 @@ namespace SDFNav.Editor
         {
             var window = GetWindow<DebugDrawWindow>();
             window.SDFPreview.Build(data);
+            window.PathFinderDebug.SDF = data;
         }
 
         private void OnEnable()
@@ -46,15 +47,10 @@ namespace SDFNav.Editor
             TestPoint = EditorGUILayout.ObjectField(TestPoint, typeof(Transform), true) as Transform;
             if (TestPoint && Edge != null)
             {
-                //if (GUILayout.Button("刷新"))
-                {
-                    SDFTest();
-                }
+                SDFTest();
             }
-            if (SDFPreview.SDFTexture)
-            {
-                GUILayout.Label(SDFPreview.SDFTexture, GUILayout.MinHeight(512), GUILayout.MinWidth(512));
-            }
+            PathFinderDebug.OnGUI();
+            SDFPreview.OnGUI();
         }
 
         private void OnSceneGUI(SceneView view)
@@ -68,6 +64,7 @@ namespace SDFNav.Editor
                 }
             }
             SDFPreview.OnSceneGUI();
+            PathFinderDebug.OnSceneGUI();
         }
     }
 }

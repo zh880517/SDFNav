@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
 namespace SDFNav.Editor
@@ -38,6 +39,26 @@ namespace SDFNav.Editor
                     Vector3 from1 = edgeData.Vertices[result.ConnectSegement.From].ToV3();
                     Vector3 to1 = edgeData.Vertices[result.ConnectSegement.To].ToV3();
                     Handles.DrawLine(from1, to1);
+                }
+            }
+        }
+
+        public static void DrawPoint(Vector3 pt, float size, Color color)
+        {
+            using (new Handles.DrawingScope(color))
+            {
+                pt.y = 0;
+                Handles.SphereHandleCap(0, pt, Quaternion.identity, size, EventType.Repaint);
+            }
+        }
+
+        public static void DrawPath(List<Vector2> path, Color color, float thickness = 0)
+        {
+            using (new Handles.DrawingScope(color))
+            {
+                for (int i = 1; i < path.Count; ++i)
+                {
+                    Handles.DrawLine(path[i - 1].ToV3(), path[i].ToV3(), thickness);
                 }
             }
         }

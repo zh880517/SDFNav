@@ -2,21 +2,34 @@ using System.IO;
 using UnityEngine;
 namespace SDFNav
 {
+    [System.Serializable]
     public class SDFData
     {
-        public int Width { get; private set; }
-        public int Height { get; private set; }
-        public float Grain { get; private set; }
-        public float Scale { get; private set; }
-        public Vector2 Origin { get; private set; }
+        [SerializeField]
         private short[] data;
+        [SerializeField]
+        private int width;
+        [SerializeField]
+        private int height;
+        [SerializeField]
+        private float grain;
+        [SerializeField]
+        private float scale;
+        [SerializeField]
+        private Vector2 origin;
+
+        public int Width => width;
+        public int Height => height;
+        public float Grain => grain;
+        public float Scale => scale;
+        public Vector2 Origin => origin;
         public short this[int x, int y]
         {
             get
             {
-                if (x < 0 || x >= Width || y < 0 || y >= Height)
+                if (x < 0 || x >= width || y < 0 || y >= height)
                     return short.MinValue;
-                return data[x + y * Width];
+                return data[x + y * width];
             }
         }
 
@@ -25,53 +38,53 @@ namespace SDFNav
             get
             {
                 if (idx < 0 || idx >= data.Length)
-                    return short.MinValue * Scale;
-                return data[idx] * Scale;
+                    return short.MinValue * scale;
+                return data[idx] * scale;
             }
         }
 
         public float Sample(Vector2 pos)
         {
-            pos = (pos - Origin) / Grain;
+            pos = (pos - Origin) / grain;
             int x = Mathf.FloorToInt(pos.x);
             int y = Mathf.FloorToInt(pos.y);
-            int idx = x + y * Width;
+            int idx = x + y * width;
             float rx = pos.x - x;
             float ry = pos.y - y;
             //2 3
             //0 1
             float v0 = this[idx];
             float v1 = this[idx + 1];
-            float v2 = this[idx + Width];
-            float v3 = this[idx + Width + 1];
+            float v2 = this[idx + width];
+            float v3 = this[idx + width + 1];
 
             return (v0 * (1 - rx) + v1 * rx) * (1 - ry) + (v2 * (1 - rx) + v3 * rx) * ry;
         }
 
-        public float Get(Vector2Int pt)
+        public float Get(int x, int y)
         {
-            return this[pt.x + pt.y * Width];
+            return this[x + y * width];
         }
 
         public void Init(int width, int heigh, float grain, float scale, Vector2 origin, short[] data)
         {
-            Width = width;
-            Height = heigh;
-            Grain = grain;
-            Scale = scale;
-            Origin = origin;
-            this.data = new short[Width * heigh];
+            this.width = width;
+            this.height = heigh;
+            this.grain = grain;
+            this.scale = scale;
+            this.origin = origin;
+            this.data = new short[width * heigh];
             data.CopyTo(this.data, 0);
         }
 
         public void Write(BinaryWriter writer)
         {
-            writer.Write(Width);
-            writer.Write(Height);
-            writer.Write(Grain);
-            writer.Write(Scale);
-            writer.Write(Origin.x);
-            writer.Write(Origin.y);
+            writer.Write(width);
+            writer.Write(height);
+            writer.Write(grain);
+            writer.Write(scale);
+            writer.Write(origin.x);
+            writer.Write(origin.y);
             writer.Write(data.Length);
             for (int i = 0; i < data.Length; ++i)
             {
@@ -81,11 +94,11 @@ namespace SDFNav
 
         public void Read(BinaryReader reader)
         {
-            Width = reader.ReadInt32();
-            Height = reader.ReadInt32();
-            Grain = reader.ReadSingle();
-            Scale = reader.ReadSingle();
-            Origin = new Vector2(reader.ReadSingle(), reader.ReadSingle());
+            width = reader.ReadInt32();
+            height = reader.ReadInt32();
+            grain = reader.ReadSingle();
+            scale = reader.ReadSingle();
+            origin = new Vector2(reader.ReadSingle(), reader.ReadSingle());
             int len = reader.ReadInt32();
             data = new short[len];
             for (int i = 0; i < len; ++i)
