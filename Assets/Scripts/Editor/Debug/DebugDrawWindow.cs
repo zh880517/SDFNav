@@ -37,8 +37,8 @@ namespace SDFNav.Editor
         {
             if (TestPoint)
             {
-                Vector2 pt = NavMeshExportUtil.ToV2(TestPoint.position);
-                SDFResult = SDFExportUtil.SDF(pt, Edge);
+                Vector2 pt = SDFNavEditorUtil.ToV2(TestPoint.position);
+                SDFResult = EdgeEditorUtil.SDF(pt, Edge);
             }
         }
 

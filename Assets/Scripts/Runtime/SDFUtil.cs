@@ -59,32 +59,23 @@ namespace SDFNav
             Vector2 pq0 = v0 - e0 * Mathf.Clamp01(Vector2.Dot(v0, e0) / Vector2.Dot(e0, e0));
             Vector2 pq1 = v1 - e1 * Mathf.Clamp01(Vector2.Dot(v1, e1) / Vector2.Dot(e1, e1));
             Vector2 pq2 = v2 - e2 * Mathf.Clamp01(Vector2.Dot(v2, e2) / Vector2.Dot(e2, e2));
-            float s = Sign(e0.x * e2.y - e0.y * e2.x);
+            float s = Mathf.Sign(e0.x * e2.y - e0.y * e2.x);
 
             Vector2 d = Vector2.Min(Vector2.Min(new Vector2(Vector2.Dot(pq0, pq0), s * (v0.x * e0.y - v0.y * e0.x)),
                          new Vector2(Vector2.Dot(pq1, pq1), s * (v1.x * e1.y - v1.y * e1.x))),
                          new Vector2(Vector2.Dot(pq2, pq2), s * (v2.x * e2.y - v2.y * e2.x)));
-            return -Mathf.Sqrt(d.x) * Sign(d.y);
+            return -Mathf.Sqrt(d.x) * Mathf.Sign(d.y);
         }
 
         public static bool IsInTriangle(Vector2 point, Vector2 p0, Vector2 p1, Vector2 p2)
         {
             Vector2 e0 = p1 - p0, e1 = p2 - p1, e2 = p0 - p2;
             Vector2 v0 = point - p0, v1 = point - p1, v2 = point - p2;
-            float s = Sign(e0.x * e2.y - e0.y * e2.x);
+            float s = Mathf.Sign(e0.x * e2.y - e0.y * e2.x);
 
             float y = Mathf.Min(s * (v0.x * e0.y - v0.y * e0.x), s * (v1.x * e1.y - v1.y * e1.x));
             y = Mathf.Min(y, s * (v2.x * e2.y - v2.y * e2.x));
             return y > 0;
-        }
-
-        public static float Sign(float val)
-        {
-            if (val == 0)
-                return 0;
-            if (val > 0)
-                return 1;
-            return -1;
         }
     }
 

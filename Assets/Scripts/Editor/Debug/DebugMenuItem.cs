@@ -12,7 +12,7 @@ namespace SDFNav.Editor
             var mesh = NavMeshExportUtil.NavToMesh();
             var subMeshs = NavMeshExportUtil.SplitSubMesh(mesh);
             var maxSubMesh = NavMeshExportUtil.SelectMaxAreaSubMesh(subMeshs);
-            var edge = NavMeshExportUtil.SubMeshToEdgeByOffset(maxSubMesh);
+            var edge = EdgeEditorUtil.SubMeshToEdgeByOffset(maxSubMesh);
             DebugDrawWindow.DrawEdge(edge);
 
             var sdfData = SDFExportUtil.EdgeToSDF(edge);
