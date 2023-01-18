@@ -4,10 +4,10 @@ namespace SDFNav.ORCA
 {
     public class Obstacle
     {
-        public Obstacle next_;
-        public Obstacle previous_;
-        public Vector2 direction_;
-        public Vector2 point_;
-        public bool convex_;
+        public Obstacle Next;
+        public Obstacle Previous;
+        public Vector2 Direction;
+        public Vector2 Point;
+        public bool Convex;
     }
 }

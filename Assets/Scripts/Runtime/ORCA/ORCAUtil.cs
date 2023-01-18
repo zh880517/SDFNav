@@ -10,16 +10,16 @@ namespace SDFNav.ORCA
         {
             return vector1.x * vector2.y - vector1.y * vector2.x;
         }
-        public static void ComputeObstacle(Vector2 position_, float radius_, float timeHorizonObst_, Vector2 velocity_, List<Obstacle> obstacleNeighbors_, List<Line> orcaLines_)
+        public static void ComputeObstacle(Vector2 position, float radius, float timeHorizonObst, Vector2 velocity, List<Obstacle> obstacleNeighbors, List<Line> orcaLines)
         {
-            float invTimeHorizonObst = 1.0f / timeHorizonObst_;
+            float invTimeHorizonObst = 1.0f / timeHorizonObst;
             /* Create obstacle ORCA lines. */
-            for (int i=0; i<obstacleNeighbors_.Count; ++i)
+            for (int i=0; i<obstacleNeighbors.Count; ++i)
             {
-                Obstacle obstacle1 = obstacleNeighbors_[i];
-                Obstacle obstacle2 = obstacle1.next_;
-                Vector2 relativePosition1 = obstacle1.point_ - position_;
-                Vector2 relativePosition2 = obstacle2.point_ - position_;
+                Obstacle obstacle1 = obstacleNeighbors[i];
+                Obstacle obstacle2 = obstacle1.Next;
+                Vector2 relativePosition1 = obstacle1.Point - position;
+                Vector2 relativePosition2 = obstacle2.Point - position;
 
                 /*
                  * Check if velocity obstacle of obstacle is already taken care
@@ -27,11 +27,11 @@ namespace SDFNav.ORCA
                  */
                 //检查障碍物的速度障碍是否已经被先前建造的障碍物ORCA线所处理。
                 bool alreadyCovered = false;
-                for (int j = 0; j < orcaLines_.Count; ++j)
+                for (int j = 0; j < orcaLines.Count; ++j)
                 {
-                    var line = orcaLines_[j];
-                    float val1 = Cross(invTimeHorizonObst * relativePosition1 - line.point, line.direction) - invTimeHorizonObst * radius_;
-                    float val2 = Cross(invTimeHorizonObst * relativePosition2 - line.point, line.direction) - invTimeHorizonObst * radius_;
+                    var line = orcaLines[j];
+                    float val1 = Cross(invTimeHorizonObst * relativePosition1 - line.Point, line.Direction) - invTimeHorizonObst * radius;
+                    float val2 = Cross(invTimeHorizonObst * relativePosition2 - line.Point, line.Direction) - invTimeHorizonObst * radius;
                     if (val1 >=-RVO_EPSILON && val2 >= -RVO_EPSILON)
                     {
                         alreadyCovered = true;
@@ -44,17 +44,17 @@ namespace SDFNav.ORCA
                 /* Not yet covered. Check for collisions. */
                 float distSq1 = relativePosition1.sqrMagnitude;
                 float distSq2 = relativePosition2.sqrMagnitude;
-                float radiusSq = radius_ * radius_;
-                Vector2 obstacleVector = obstacle2.point_ - obstacle1.point_;
+                float radiusSq = radius * radius;
+                Vector2 obstacleVector = obstacle2.Point - obstacle1.Point;
                 float s = Vector2.Dot(-relativePosition1, obstacleVector) / obstacleVector.sqrMagnitude;
                 float distSqLine = (-relativePosition1 - s * obstacleVector).sqrMagnitude;
                 if (s < 0.0f && distSq1 <= radiusSq)
                 {
                     /* Collision with left vertex. Ignore if non-convex. */
-                    if (obstacle1.convex_)
+                    if (obstacle1.Convex)
                     {
                         var dir = new Vector2(-relativePosition1.y, relativePosition1.x);
-                        orcaLines_.Add(new Line { point = Vector2.zero, direction = dir });
+                        orcaLines.Add(new Line { Point = Vector2.zero, Direction = dir });
                     }
                     continue;
                 }
@@ -64,17 +64,17 @@ namespace SDFNav.ORCA
                      * Collision with right vertex. Ignore if non-convex or if
                      * it will be taken care of by neighboring obstacle.
                      */
-                    if (obstacle2.convex_ && Cross(relativePosition2, obstacle2.direction_) >= 0.0f)
+                    if (obstacle2.Convex && Cross(relativePosition2, obstacle2.Direction) >= 0.0f)
                     {
                         var dir = new Vector2(-relativePosition2.y, relativePosition2.x);
-                        orcaLines_.Add(new Line { point = Vector2.zero, direction = dir });
+                        orcaLines.Add(new Line { Point = Vector2.zero, Direction = dir });
                     }
                     continue;
                 }
                 else if (s >= 0.0f && s < 1.0f && distSqLine <= radiusSq)
                 {
                     /* Collision with obstacle segment. */
-                    orcaLines_.Add(new Line { point = Vector2.zero, direction = -obstacle1.direction_ });
+                    orcaLines.Add(new Line { Point = Vector2.zero, Direction = -obstacle1.Direction });
                     continue;
                 }
                 /*
@@ -89,15 +89,15 @@ namespace SDFNav.ORCA
                      * Obstacle viewed obliquely so that left vertex
                      * defines velocity obstacle.
                      */
-                    if (!obstacle1.convex_)
+                    if (!obstacle1.Convex)
                         continue;/* Ignore obstacle. */
                     obstacle2 = obstacle1;
 
                     float leg1 = Mathf.Sqrt(distSq1 - radiusSq);
-                    leftLegDirection = new Vector2(relativePosition1.x * leg1 - relativePosition1.y * radius_, 
-                        relativePosition1.x * radius_ + relativePosition1.y * leg1) / distSq1;
-                    rightLegDirection = new Vector2(relativePosition1.x * leg1 + relativePosition1.y * radius_, 
-                        -relativePosition1.x * radius_ + relativePosition1.y * leg1) / distSq1;
+                    leftLegDirection = new Vector2(relativePosition1.x * leg1 - relativePosition1.y * radius, 
+                        relativePosition1.x * radius + relativePosition1.y * leg1) / distSq1;
+                    rightLegDirection = new Vector2(relativePosition1.x * leg1 + relativePosition1.y * radius, 
+                        -relativePosition1.x * radius + relativePosition1.y * leg1) / distSq1;
                 }
                 else if (s > 1.0f && distSqLine <= radiusSq)
                 {
@@ -105,41 +105,41 @@ namespace SDFNav.ORCA
                      * Obstacle viewed obliquely so that
                      * right vertex defines velocity obstacle.
                      */
-                    if (!obstacle2.convex_)
+                    if (!obstacle2.Convex)
                         continue;/* Ignore obstacle. */
                     obstacle1 = obstacle2;
 
                     float leg2 = Mathf.Sqrt(distSq2 - radiusSq);
-                    leftLegDirection = new Vector2(relativePosition2.x * leg2 - relativePosition2.y * radius_, 
-                        relativePosition2.x * radius_ + relativePosition2.y * leg2) / distSq2;
-                    rightLegDirection = new Vector2(relativePosition2.x * leg2 + relativePosition2.y * radius_, 
-                        -relativePosition2.x * radius_ + relativePosition2.y * leg2) / distSq2;
+                    leftLegDirection = new Vector2(relativePosition2.x * leg2 - relativePosition2.y * radius, 
+                        relativePosition2.x * radius + relativePosition2.y * leg2) / distSq2;
+                    rightLegDirection = new Vector2(relativePosition2.x * leg2 + relativePosition2.y * radius, 
+                        -relativePosition2.x * radius + relativePosition2.y * leg2) / distSq2;
                 }
                 else
                 {
                     /* Usual situation. */
-                    if (obstacle1.convex_)
+                    if (obstacle1.Convex)
                     {
                         float leg1 = Mathf.Sqrt(distSq1 - radiusSq);
-                        leftLegDirection = new Vector2(relativePosition1.x * leg1 - relativePosition1.y * radius_, 
-                            relativePosition1.x * radius_ + relativePosition1.y * leg1) / distSq1;
+                        leftLegDirection = new Vector2(relativePosition1.x * leg1 - relativePosition1.y * radius, 
+                            relativePosition1.x * radius + relativePosition1.y * leg1) / distSq1;
                     }
                     else
                     {
                         /* Left vertex non-convex; left leg extends cut-off line. */
-                        leftLegDirection = -obstacle1.direction_;
+                        leftLegDirection = -obstacle1.Direction;
                     }
 
-                    if (obstacle2.convex_)
+                    if (obstacle2.Convex)
                     {
                         float leg2 = Mathf.Sqrt(distSq2 - radiusSq);
-                        rightLegDirection = new Vector2(relativePosition2.x * leg2 + relativePosition2.y * radius_, 
-                            -relativePosition2.x * radius_ + relativePosition2.y * leg2) / distSq2;
+                        rightLegDirection = new Vector2(relativePosition2.x * leg2 + relativePosition2.y * radius, 
+                            -relativePosition2.x * radius + relativePosition2.y * leg2) / distSq2;
                     }
                     else
                     {
                         /* Right vertex non-convex; right leg extends cut-off line. */
-                        rightLegDirection = obstacle1.direction_;
+                        rightLegDirection = obstacle1.Direction;
                     }
                 }
                 /*
@@ -148,45 +148,45 @@ namespace SDFNav.ORCA
                  * velocity projected on "foreign" leg, no constraint is added.
                  */
 
-                Obstacle leftNeighbor = obstacle1.previous_;
+                Obstacle leftNeighbor = obstacle1.Previous;
 
                 bool isLeftLegForeign = false;
                 bool isRightLegForeign = false;
 
-                if (obstacle1.convex_ && Cross(leftLegDirection, -leftNeighbor.direction_) >= 0.0f)
+                if (obstacle1.Convex && Cross(leftLegDirection, -leftNeighbor.Direction) >= 0.0f)
                 {
                     /* Left leg points into obstacle. */
-                    leftLegDirection = -leftNeighbor.direction_;
+                    leftLegDirection = -leftNeighbor.Direction;
                     isLeftLegForeign = true;
                 }
 
-                if (obstacle2.convex_ && Cross(rightLegDirection, obstacle2.direction_) <= 0.0f)
+                if (obstacle2.Convex && Cross(rightLegDirection, obstacle2.Direction) <= 0.0f)
                 {
                     /* Right leg points into obstacle. */
-                    rightLegDirection = obstacle2.direction_;
+                    rightLegDirection = obstacle2.Direction;
                     isRightLegForeign = true;
                 }
 
                 /* Compute cut-off centers. */
-                Vector2 leftCutOff = invTimeHorizonObst * (obstacle1.point_ - position_);
-                Vector2 rightCutOff = invTimeHorizonObst * (obstacle2.point_ - position_);
+                Vector2 leftCutOff = invTimeHorizonObst * (obstacle1.Point - position);
+                Vector2 rightCutOff = invTimeHorizonObst * (obstacle2.Point - position);
                 Vector2 cutOffVector = rightCutOff - leftCutOff;
 
                 /* Project current velocity on velocity obstacle. */
 
                 /* Check if current velocity is projected on cutoff circles. */
-                float t = obstacle1 == obstacle2 ? 0.5f : Vector2.Dot((velocity_ - leftCutOff), cutOffVector) / cutOffVector.sqrMagnitude;
-                float tLeft = Vector2.Dot((velocity_ - leftCutOff), leftLegDirection);
-                float tRight = Vector2.Dot((velocity_ - rightCutOff), rightLegDirection);
+                float t = obstacle1 == obstacle2 ? 0.5f : Vector2.Dot((velocity - leftCutOff), cutOffVector) / cutOffVector.sqrMagnitude;
+                float tLeft = Vector2.Dot((velocity - leftCutOff), leftLegDirection);
+                float tRight = Vector2.Dot((velocity - rightCutOff), rightLegDirection);
                 if ((t < 0.0f && tLeft < 0.0f) || (obstacle1 == obstacle2 && tLeft < 0.0f && tRight < 0.0f))
                 {
                     /* Project on left cut-off circle. */
-                    Vector2 unitW = (velocity_ - leftCutOff).normalized;
+                    Vector2 unitW = (velocity - leftCutOff).normalized;
 
-                    orcaLines_.Add(new Line 
+                    orcaLines.Add(new Line 
                     {
-                        point = leftCutOff + radius_ * invTimeHorizonObst * unitW,
-                        direction = new Vector2(unitW.y, -unitW.x),
+                        Point = leftCutOff + radius * invTimeHorizonObst * unitW,
+                        Direction = new Vector2(unitW.y, -unitW.x),
                     });
 
                     continue;
@@ -194,11 +194,11 @@ namespace SDFNav.ORCA
                 else if (t > 1.0f && tRight < 0.0f)
                 {
                     /* Project on right cut-off circle. */
-                    Vector2 unitW = (velocity_ - rightCutOff).normalized;
-                    orcaLines_.Add(new Line
+                    Vector2 unitW = (velocity - rightCutOff).normalized;
+                    orcaLines.Add(new Line
                     {
-                        point = rightCutOff + radius_ * invTimeHorizonObst * unitW,
-                        direction = new Vector2(unitW.y, -unitW.x),
+                        Point = rightCutOff + radius * invTimeHorizonObst * unitW,
+                        Direction = new Vector2(unitW.y, -unitW.x),
                     });
                     continue;
                 }
@@ -206,15 +206,15 @@ namespace SDFNav.ORCA
                  * Project on left leg, right leg, or cut-off line, whichever is
                  * closest to velocity.
                  */
-                float distSqCutoff = (t < 0.0f || t > 1.0f || obstacle1 == obstacle2) ? float.PositiveInfinity : (velocity_ - (leftCutOff + t * cutOffVector)).sqrMagnitude;
-                float distSqLeft = tLeft < 0.0f ? float.PositiveInfinity : (velocity_ - (leftCutOff + tLeft * leftLegDirection)).sqrMagnitude;
-                float distSqRight = tRight < 0.0f ? float.PositiveInfinity : (velocity_ - (rightCutOff + tRight * rightLegDirection)).sqrMagnitude;
+                float distSqCutoff = (t < 0.0f || t > 1.0f || obstacle1 == obstacle2) ? float.PositiveInfinity : (velocity - (leftCutOff + t * cutOffVector)).sqrMagnitude;
+                float distSqLeft = tLeft < 0.0f ? float.PositiveInfinity : (velocity - (leftCutOff + tLeft * leftLegDirection)).sqrMagnitude;
+                float distSqRight = tRight < 0.0f ? float.PositiveInfinity : (velocity - (rightCutOff + tRight * rightLegDirection)).sqrMagnitude;
                 if (distSqCutoff <= distSqLeft && distSqCutoff <= distSqRight)
                 {
                     /* Project on cut-off line. */
-                    var line = new Line { direction = -obstacle1.direction_ };
-                    line.point = leftCutOff + radius_ * invTimeHorizonObst * new Vector2(-line.direction.y, line.direction.x);
-                    orcaLines_.Add(line);
+                    var line = new Line { Direction = -obstacle1.Direction };
+                    line.Point = leftCutOff + radius * invTimeHorizonObst * new Vector2(-line.Direction.y, line.Direction.x);
+                    orcaLines.Add(line);
                     continue;
                 }
                 if (distSqLeft <= distSqRight)
@@ -222,10 +222,10 @@ namespace SDFNav.ORCA
                     /* Project on left leg. */
                     if (isLeftLegForeign)
                         continue;
-                    orcaLines_.Add(new Line
+                    orcaLines.Add(new Line
                     {
-                        point = leftCutOff + radius_ * invTimeHorizonObst * new Vector2(-leftLegDirection.y, leftLegDirection.x),
-                        direction = leftLegDirection,
+                        Point = leftCutOff + radius * invTimeHorizonObst * new Vector2(-leftLegDirection.y, leftLegDirection.x),
+                        Direction = leftLegDirection,
                     });
                     continue;
                 }
@@ -233,26 +233,26 @@ namespace SDFNav.ORCA
                 if (isRightLegForeign)
                     continue;
                 var direction = -rightLegDirection;
-                orcaLines_.Add(new Line
+                orcaLines.Add(new Line
                 {
-                    point = rightCutOff + radius_ * invTimeHorizonObst * new Vector2(-direction.y, direction.x),
-                    direction = direction,
+                    Point = rightCutOff + radius * invTimeHorizonObst * new Vector2(-direction.y, direction.x),
+                    Direction = direction,
                 });
             }
         }
 
-        public static void ComputeAgent(Vector2 position_, float radius_, float timeHorizon_, float moveStep, Vector2 velocity_, List<Agent> agentNeighbors_, List<Line> orcaLines_)
+        public static void ComputeAgent(Vector2 position, float radius, float timeHorizon, float moveStep, Vector2 velocity, List<Agent> agentNeighbors, List<Line> orcaLines)
         {
-            int numObstLines = orcaLines_.Count;
-            float invTimeHorizon = 1.0f / timeHorizon_;
-            for (int i = 0; i < agentNeighbors_.Count; ++i)
+            int numObstLines = orcaLines.Count;
+            float invTimeHorizon = 1.0f / timeHorizon;
+            for (int i = 0; i < agentNeighbors.Count; ++i)
             {
-                Agent other = agentNeighbors_[i];
+                Agent other = agentNeighbors[i];
 
-                Vector2 relativePosition = other.position_ - position_;
-                Vector2 relativeVelocity = velocity_ - other.velocity_;
+                Vector2 relativePosition = other.Position - position;
+                Vector2 relativeVelocity = velocity - other.Velocity;
                 float distSq = relativePosition.sqrMagnitude;
-                float combinedRadius = radius_ + other.radius_;
+                float combinedRadius = radius + other.Radius;
                 float combinedRadiusSq = combinedRadius * combinedRadius;
                 Line line;
                 Vector2 u;
@@ -269,7 +269,7 @@ namespace SDFNav.ORCA
                         float wLength = UnityEngine.Mathf.Sqrt(wLengthSq);
                         Vector2 unitW = w / wLength;
 
-                        line.direction = new Vector2(unitW.y, -unitW.x);
+                        line.Direction = new Vector2(unitW.y, -unitW.x);
                         u = (combinedRadius * invTimeHorizon - wLength) * unitW;
                     }
                     else
@@ -280,18 +280,18 @@ namespace SDFNav.ORCA
                         if (Cross(relativePosition, w) > 0.0f)
                         {
                             /* Project on left leg. */
-                            line.direction = new Vector2(relativePosition.x * leg - relativePosition.y * combinedRadius, 
+                            line.Direction = new Vector2(relativePosition.x * leg - relativePosition.y * combinedRadius, 
                                 relativePosition.x * combinedRadius + relativePosition.y * leg) / distSq;
                         }
                         else
                         {
                             /* Project on right leg. */
-                            line.direction = -new Vector2(relativePosition.x * leg + relativePosition.y * combinedRadius, 
+                            line.Direction = -new Vector2(relativePosition.x * leg + relativePosition.y * combinedRadius, 
                                 -relativePosition.x * combinedRadius + relativePosition.y * leg) / distSq;
                         }
 
-                        float dotProduct2 = Vector2.Dot(relativeVelocity, line.direction);
-                        u = dotProduct2 * line.direction - relativeVelocity;
+                        float dotProduct2 = Vector2.Dot(relativeVelocity, line.Direction);
+                        u = dotProduct2 * line.Direction - relativeVelocity;
                     }
                 }
                 else
@@ -305,22 +305,22 @@ namespace SDFNav.ORCA
                     float wLength = w.magnitude;
                     Vector2 unitW = w / wLength;
 
-                    line.direction = new Vector2(unitW.y, -unitW.x);
+                    line.Direction = new Vector2(unitW.y, -unitW.x);
                     u = (combinedRadius * invTimeStep - wLength) * unitW;
                 }
 
-                line.point = velocity_ + 0.5f * u;
-                orcaLines_.Add(line);
+                line.Point = velocity + 0.5f * u;
+                orcaLines.Add(line);
             }
         }
         
-        public static Vector2 ComputeNewVelocity(List<Line> orcaLines_, int numObstLines, List<Line> projLines, float maxSpeed_, Vector2 prefVelocity_)
+        public static Vector2 ComputeNewVelocity(List<Line> orcaLines, int numObstLines, List<Line> projLines, float maxSpeed, Vector2 prefVelocity)
         {
             Vector2 newVelocity_ = Vector2.zero;
-            int lineFail = linearProgram2(orcaLines_, maxSpeed_, prefVelocity_, false, ref newVelocity_);
-            if (lineFail < orcaLines_.Count)
+            int lineFail = linearProgram2(orcaLines, maxSpeed, prefVelocity, false, ref newVelocity_);
+            if (lineFail < orcaLines.Count)
             {
-                linearProgram3(orcaLines_, numObstLines, projLines, lineFail, maxSpeed_, ref newVelocity_);
+                linearProgram3(orcaLines, numObstLines, projLines, lineFail, maxSpeed, ref newVelocity_);
             }
             return newVelocity_;
         }
@@ -343,8 +343,8 @@ namespace SDFNav.ORCA
          */
         private static bool linearProgram1(IList<Line> lines, int lineNo, float radius, Vector2 optVelocity, bool directionOpt, ref Vector2 result)
         {
-            float dotProduct = Vector2.Dot(lines[lineNo].point, lines[lineNo].direction);
-            float discriminant = (dotProduct * dotProduct) + (radius * radius) - lines[lineNo].point.sqrMagnitude;
+            float dotProduct = Vector2.Dot(lines[lineNo].Point, lines[lineNo].Direction);
+            float discriminant = (dotProduct * dotProduct) + (radius * radius) - lines[lineNo].Point.sqrMagnitude;
 
             if (discriminant < 0.0f)
             {
@@ -358,8 +358,8 @@ namespace SDFNav.ORCA
 
             for (int i = 0; i < lineNo; ++i)
             {
-                float denominator = Cross(lines[lineNo].direction, lines[i].direction);
-                float numerator = Cross(lines[i].direction, lines[lineNo].point - lines[i].point);
+                float denominator = Cross(lines[lineNo].Direction, lines[i].Direction);
+                float numerator = Cross(lines[i].Direction, lines[lineNo].Point - lines[i].Point);
 
                 if (Mathf.Abs(denominator) <= RVO_EPSILON)
                 {
@@ -389,33 +389,33 @@ namespace SDFNav.ORCA
             if (directionOpt)
             {
                 /* Optimize direction. */
-                if (Vector2.Dot(optVelocity, lines[lineNo].direction) > 0.0f)
+                if (Vector2.Dot(optVelocity, lines[lineNo].Direction) > 0.0f)
                 {
                     /* Take right extreme. */
-                    result = lines[lineNo].point + tRight * lines[lineNo].direction;
+                    result = lines[lineNo].Point + tRight * lines[lineNo].Direction;
                 }
                 else
                 {
                     /* Take left extreme. */
-                    result = lines[lineNo].point + tLeft * lines[lineNo].direction;
+                    result = lines[lineNo].Point + tLeft * lines[lineNo].Direction;
                 }
             }
             else
             {
                 /* Optimize closest point. */
-                float t = Vector2.Dot(lines[lineNo].direction, (optVelocity - lines[lineNo].point));
+                float t = Vector2.Dot(lines[lineNo].Direction, (optVelocity - lines[lineNo].Point));
 
                 if (t < tLeft)
                 {
-                    result = lines[lineNo].point + tLeft * lines[lineNo].direction;
+                    result = lines[lineNo].Point + tLeft * lines[lineNo].Direction;
                 }
                 else if (t > tRight)
                 {
-                    result = lines[lineNo].point + tRight * lines[lineNo].direction;
+                    result = lines[lineNo].Point + tRight * lines[lineNo].Direction;
                 }
                 else
                 {
-                    result = lines[lineNo].point + t * lines[lineNo].direction;
+                    result = lines[lineNo].Point + t * lines[lineNo].Direction;
                 }
             }
 
@@ -459,7 +459,7 @@ namespace SDFNav.ORCA
 
             for (int i = 0; i < lines.Count; ++i)
             {
-                if (Cross(lines[i].direction, lines[i].point - result) > 0.0f)
+                if (Cross(lines[i].Direction, lines[i].Point - result) > 0.0f)
                 {
                     /* Result does not satisfy constraint i. Compute new optimal result. */
                     Vector2 tempResult = result;
@@ -494,7 +494,7 @@ namespace SDFNav.ORCA
 
             for (int i = beginLine; i < lines.Count; ++i)
             {
-                if (Cross(lines[i].direction, lines[i].point - result) > distance)
+                if (Cross(lines[i].Direction, lines[i].Point - result) > distance)
                 {
                     projLines?.Clear();
                     projLines ??= new List<Line>();
@@ -508,12 +508,12 @@ namespace SDFNav.ORCA
                     {
                         Line line;
 
-                        float determinant = Cross(lines[i].direction, lines[j].direction);
+                        float determinant = Cross(lines[i].Direction, lines[j].Direction);
 
                         if (Mathf.Abs(determinant) <= RVO_EPSILON)
                         {
                             /* Line i and line j are parallel. */
-                            if (Vector2.Dot(lines[i].direction, lines[j].direction) > 0.0f)
+                            if (Vector2.Dot(lines[i].Direction, lines[j].Direction) > 0.0f)
                             {
                                 /* Line i and line j point in the same direction. */
                                 continue;
@@ -521,20 +521,20 @@ namespace SDFNav.ORCA
                             else
                             {
                                 /* Line i and line j point in opposite direction. */
-                                line.point = 0.5f * (lines[i].point + lines[j].point);
+                                line.Point = 0.5f * (lines[i].Point + lines[j].Point);
                             }
                         }
                         else
                         {
-                            line.point = lines[i].point + (Cross(lines[j].direction, lines[i].point - lines[j].point) / determinant) * lines[i].direction;
+                            line.Point = lines[i].Point + (Cross(lines[j].Direction, lines[i].Point - lines[j].Point) / determinant) * lines[i].Direction;
                         }
 
-                        line.direction = (lines[j].direction - lines[i].direction).normalized;
+                        line.Direction = (lines[j].Direction - lines[i].Direction).normalized;
                         projLines.Add(line);
                     }
 
                     Vector2 tempResult = result;
-                    if (linearProgram2(projLines, radius, new Vector2(-lines[i].direction.y, lines[i].direction.x), true, ref result) < projLines.Count)
+                    if (linearProgram2(projLines, radius, new Vector2(-lines[i].Direction.y, lines[i].Direction.x), true, ref result) < projLines.Count)
                     {
                         /*
                          * This should in principle not happen. The result is by
@@ -545,7 +545,7 @@ namespace SDFNav.ORCA
                         result = tempResult;
                     }
 
-                    distance = Cross(lines[i].direction, lines[i].point - result);
+                    distance = Cross(lines[i].Direction, lines[i].Point - result);
                 }
             }
         }
