@@ -43,19 +43,20 @@ namespace SDFNav.Editor
 
         public static Texture2D ToTexture(SDFData sdf)
         {
-            Texture2D texture = new Texture2D(sdf.Width, sdf.Height, TextureFormat.Alpha8, false);
+            Texture2D texture = new Texture2D(sdf.Width, sdf.Height);
             for (int i = 0; i < sdf.Width; ++i)
             {
                 for (int j = 0; j < sdf.Height; ++j)
                 {
                     short val = sdf[i, j];
+                    float pencent = ((float)val)/ short.MaxValue;
                     if (val <= 0)
                     {
-                        texture.SetPixel(i, j, new Color(1, 0, 0, 0));
+                        texture.SetPixel(i, j, new Color(1, 0, 0, -pencent));
                     }
                     else
                     {
-                        texture.SetPixel(i, j, new Color(0, 1, 0, 1));
+                        texture.SetPixel(i, j, new Color(0, 1, 0, pencent));
                     }
                 }
             }

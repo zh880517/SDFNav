@@ -47,7 +47,7 @@ namespace SDFNav.Editor
             {
                 Mat = new Material(shader);
                 Mat.hideFlags = HideFlags.HideAndDontSave;
-                Mat.SetTexture("_TextureSample0", SDFTexture);
+                Mat.SetTexture("_MainTex", SDFTexture);
                 Mat.doubleSidedGI = true;
             }
         }
@@ -68,8 +68,6 @@ namespace SDFNav.Editor
             if (Mat && PlaneMesh)
             {
                 CommandBuffer commandBuffer = new CommandBuffer();
-                Mat.SetColor("_Color0", new Color(0, 0, 0, 0.25f));
-                Mat.SetColor("_Color1", new Color(0, 1, 0, 0.25f));
                 commandBuffer.DrawMesh(PlaneMesh, Matrix4x4.identity, Mat);
                 Graphics.ExecuteCommandBuffer(commandBuffer);
             }
