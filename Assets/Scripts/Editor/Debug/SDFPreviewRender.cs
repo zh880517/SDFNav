@@ -13,7 +13,7 @@ namespace SDFNav.Editor
         public void Build(SDFData data)
         {
             Clear();
-            SDFTexture = SDFExportUtil.ToTexture(data);
+            SDFTexture = SDFExportUtil.ToTextureWithDistance(data);
             SDFTexture.hideFlags = HideFlags.HideAndDontSave;
             Vector3 origin = new Vector3(data.Origin.x, 0, data.Origin.y);
             float width = data.Width * data.Grain;

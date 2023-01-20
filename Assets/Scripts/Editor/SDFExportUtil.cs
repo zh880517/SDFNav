@@ -41,7 +41,7 @@ namespace SDFNav.Editor
             return sdfData;
         }
 
-        public static Texture2D ToTexture(SDFData sdf)
+        public static Texture2D ToTextureWithDistance(SDFData sdf)
         {
             Texture2D texture = new Texture2D(sdf.Width, sdf.Height);
             for (int i = 0; i < sdf.Width; ++i)

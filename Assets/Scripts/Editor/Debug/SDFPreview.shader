@@ -54,7 +54,7 @@ Shader "SDFPreview"
             {
                 // sample the texture
                 fixed4 col = tex2D(_MainTex, i.uv);
-                col.a = col.a*4;
+                col.a = col.a;
                 return col;
             }
             ENDCG

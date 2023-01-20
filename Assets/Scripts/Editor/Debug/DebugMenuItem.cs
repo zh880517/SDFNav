@@ -1,3 +1,4 @@
+using System.IO;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.AI;
@@ -17,6 +18,13 @@ namespace SDFNav.Editor
 
             var sdfData = SDFExportUtil.EdgeToSDF(edge);
             DebugDrawWindow.DrawSDF(sdfData);
+            using(FileStream file = new FileStream("Assets/ExportData/SDF.bytes", FileMode.OpenOrCreate))
+            {
+                using(BinaryWriter writer = new BinaryWriter(file))
+                {
+                    sdfData.Write(writer);
+                }
+            }
             //if (sdfData != null)
             //{
             //    var texture = SDFExportUtil.ToTexture(sdfData);
