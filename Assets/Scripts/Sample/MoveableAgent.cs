@@ -1,9 +1,8 @@
 using UnityEngine;
-
 public class MoveableAgent
 {
     public int ID;
-    public Vector3 Position;
+    public Vector2 Position;
     public float Radius;
     public float Speed;
     public bool Enable;

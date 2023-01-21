@@ -52,16 +52,24 @@ public class SampleManager : MonoBehaviour
 
     public void MoveAgent(MoveableAgent agent, Vector2 pos)
     {
+        agent.IsMoving = true;
+        Vector2 dir = pos - agent.Position;
+        agent.MoveDir = dir.normalized;
+        agent.IsMoving = true;
     }
 
     private void Update()
     {
-        Move.Update();
+        Move.Update(Time.deltaTime);
         foreach (var angent in Move.Agents)
         {
             if (AgentPrefabs.TryGetValue(angent.ID, out var go))
             {
                 go.transform.position = new Vector3(angent.Position.x, 0, angent.Position.y);
+                if (angent.MoveDir.x != 0 && angent.MoveDir.y != 0)
+                {
+                    go.transform.forward = new Vector3(angent.MoveDir.x, 0, angent.MoveDir.y);
+                }
             }
         }
     }
