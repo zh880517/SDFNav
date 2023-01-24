@@ -47,7 +47,12 @@ namespace SDFNav.Editor
                 color = Color.red;
             }
             if (Start)
+            {
                 DebugDrawUtil.DrawPoint(Start.position, Radius, color);
+                Vector2 pos = new Vector2(Start.position.x, Start.position.z);
+                Vector2 gradiend = SDF.Gradiend(pos);
+                DebugDrawUtil.DrawLine(pos, pos - gradiend.normalized * SDF.Sample(pos), Color.red);
+            }
             if (End)
                 DebugDrawUtil.DrawPoint(End.position, Radius, color);
         }

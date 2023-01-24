@@ -4,16 +4,6 @@ using UnityEngine;
 
 public class MoveManager
 {
-    struct BlockMoveAngle
-    {
-        public float Min;
-        public float Max;
-        public bool InRang(float v)
-        {
-            return v >= Min && v <= Max;
-        }
-    }
-
     public SDFData SDF = new SDFData();
     public List<MoveableAgent> Agents = new List<MoveableAgent>();
     private MoveBlockAngle MoveBlock = new MoveBlockAngle();
@@ -38,18 +28,40 @@ public class MoveManager
             if (agent.Type == MoveType.Straight)
             {
                 MoveBlock.Clear();
-                BuildStraightMoveBlockAngles(agent, agent.StraightDir, dt * agent.Speed);
-                float offSetAngle = MoveBlock.GetMinOffsetAngle();
-                if (offSetAngle >= -90 && offSetAngle <= 90)
+                float moveDistance = dt * agent.Speed;
+                BuildStraightMoveBlockAngles(agent, agent.StraightDir, moveDistance);
+                float adjustAngle = MoveBlock.GetMinOffsetAngle();
+                if (adjustAngle >= -90 && adjustAngle <= 90)
                 {
                     agent.IsMoving = true;
-                    if (!Mathf.Approximately(0, offSetAngle))
+                    if (!Mathf.Approximately(0, adjustAngle))
                     {
-                        agent.MoveDir = RotateRadians(agent.StraightDir, offSetAngle * Mathf.Deg2Rad);
+                        agent.MoveDir = RotateRadians(agent.StraightDir, adjustAngle * Mathf.Deg2Rad);
                     }
                     else 
                     {
                         agent.MoveDir = agent.StraightDir;
+                    }
+                    Vector2 newPos = agent.Position + agent.MoveDir * moveDistance;
+                    float sd = SDF.Sample(newPos);
+                    if (sd < agent.Radius + moveDistance)
+                    {
+                        Vector2 gradient = SDF.Gradiend(newPos).normalized;
+                        Vector2 adjustDir = agent.MoveDir - gradient * Vector2.Dot(gradient, agent.MoveDir);
+                        newPos = agent.Position + adjustDir * moveDistance;
+                        for (int i=0; i<3; i++)
+                        {
+                            sd = SDF.Sample(newPos);
+                            if (sd >= agent.Radius)
+                            {
+                                newPos += SDF.Gradiend(newPos).normalized * (agent.Radius - sd);
+                            }
+                        }
+                        adjustDir = newPos - agent.Position;
+                        if (Vector2.Dot(adjustDir, agent.MoveDir) > 0)
+                        {
+                            agent.MoveDir = adjustDir.normalized;
+                        }
                     }
                 }
             }

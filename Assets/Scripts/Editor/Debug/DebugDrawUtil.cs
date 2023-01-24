@@ -52,6 +52,14 @@ namespace SDFNav.Editor
             }
         }
 
+        public static void DrawLine(Vector2 from, Vector2 to, Color color, float thickness = 0)
+        {
+            using (new Handles.DrawingScope(color))
+            {
+                Handles.DrawLine(from.ToV3(), to.ToV3(), thickness);
+            }
+        }
+
         public static void DrawPath(List<Vector2> path, Color color, float thickness = 0)
         {
             using (new Handles.DrawingScope(color))

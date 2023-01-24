@@ -24,7 +24,7 @@ namespace SDFNav
                     return true;
             }
         }
-        //距离最近障碍物的方向
+        //梯度：远离障碍物的方向
         public static Vector2 Gradiend(this SDFData data, Vector2 point)
         {
             float delta = 1;
