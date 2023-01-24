@@ -50,6 +50,47 @@ namespace SDFNav
 
         }
 
+        public static float TryMoveTo(this SDFData data, Vector2 origin, Vector2 dir, float radius, float maxDistance)
+        {
+            float sdBefore = data.Sample(origin);
+            if (sdBefore < 0)
+                return 0;
+            if (radius + maxDistance <= (sdBefore + 0.00001))
+                return maxDistance;
+            if (sdBefore < radius)
+            {
+                float t = 0;
+                float step = 0.01f;
+                while (true)
+                {
+                    Vector2 p = origin + dir * (t + step);
+                    float sd = data.Sample(p);
+                    //sd <= sdBefore 是为了处理初始位置已经卡在障碍物边缘，如果移动的方向越来越开阔，说明是远离障碍物
+                    if (sd <= radius && sd <= sdBefore)
+                        return t;
+                    sdBefore = sd;
+                    t += step;
+                    step = Mathf.Abs(sd - radius);
+                    if (t >= maxDistance)
+                        return maxDistance;
+                }
+            }
+            else
+            {
+                float t = 0;
+                while (true)
+                {
+                    Vector2 p = origin + dir * (t + 0.01f);
+                    float sd = data.Sample(p);
+                    if (sd <= radius)
+                        return t;
+                    t += (sd - radius);
+                    if (t >= maxDistance)
+                        return maxDistance;
+                }
+            }
+        }
+
         public static float DiskCast(this SDFData data, Vector2 origin, Vector2 dir, float radius, float maxDistance)
         {
             float sdStart = data.Sample(origin);

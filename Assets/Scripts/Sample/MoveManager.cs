@@ -95,7 +95,7 @@ public class MoveManager
             float moveDistance = agent.Speed * dt;
             if (moveDistance >= agent.Radius || SDF.Sample(agent.Position) < (agent.Radius + moveDistance))
             {
-                moveDistance = SDF.DiskCast(agent.Position, agent.MoveDir, agent.Radius, moveDistance);
+                moveDistance = SDF.TryMoveTo(agent.Position, agent.MoveDir, agent.Radius, moveDistance);
             }
             moveDistance = ColliderMoveDistance(agent, agent.MoveDir, moveDistance);
             Vector2 offset = moveDistance * agent.MoveDir;
