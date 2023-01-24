@@ -52,10 +52,18 @@ namespace SDFNav
 
         public static float DiskCast(this SDFData data, Vector2 origin, Vector2 dir, float radius, float maxDistance)
         {
+            float sdStart = data.Sample(origin);
+            if (sdStart < 0)
+                return 0;
             float t = 0;
+            if (sdStart <= radius)
+            {
+                //这里是为了防止起点与边界的距离过短导致直接返回失败，如果需要限制起点的范围，需要额外处理
+                t = radius - sdStart;
+            }
             while (true)
             {
-                Vector2 p = origin + dir * t;
+                Vector2 p = origin + dir * (t + 0.01f);
                 float sd = data.Sample(p);
                 if (sd <= radius)
                     return t;

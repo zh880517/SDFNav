@@ -54,8 +54,8 @@ public class SampleManager : MonoBehaviour
     {
         agent.IsMoving = true;
         Vector2 dir = pos - agent.Position;
-        agent.MoveDir = dir.normalized;
-        agent.IsMoving = true;
+        agent.StraightDir = dir.normalized;
+        agent.Type = MoveType.Straight;
     }
 
     private void Update()

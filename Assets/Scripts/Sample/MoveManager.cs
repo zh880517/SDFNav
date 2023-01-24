@@ -4,36 +4,102 @@ using UnityEngine;
 
 public class MoveManager
 {
+    struct BlockMoveAngle
+    {
+        public float Min;
+        public float Max;
+        public bool InRang(float v)
+        {
+            return v >= Min && v <= Max;
+        }
+    }
+
     public SDFData SDF = new SDFData();
     public List<MoveableAgent> Agents = new List<MoveableAgent>();
+    private MoveBlockAngle MoveBlock = new MoveBlockAngle();
     private int keyIndex;
     public MoveableAgent CreateAgent(Vector2 pos, float radius, float speed)
     {
         MoveableAgent agent = new MoveableAgent();
         agent.ID = ++keyIndex;
         pos = SDF.FindNearestValidPoint(pos, radius);
-        agent.Position =  pos;
+        agent.Position = pos;
         agent.Radius = radius;
         agent.Speed = speed;
         Agents.Add(agent);
         return agent;
     }
 
-    public void Update(float dt)
+    public void UpdateMoveDir(float dt)
     {
         foreach (var agent in Agents)
         {
-            if (agent.IsMoving)
+            agent.IsMoving = false;
+            if (agent.Type == MoveType.Straight)
             {
-                float moveDistance = agent.Speed * dt;
-                if (moveDistance >= agent.Radius || SDF.Sample(agent.Position) < (agent.Radius + moveDistance))
+                MoveBlock.Clear();
+                BuildStraightMoveBlockAngles(agent, agent.StraightDir, dt * agent.Speed);
+                float offSetAngle = MoveBlock.GetMinOffsetAngle();
+                if (offSetAngle >= -90 && offSetAngle <= 90)
                 {
-                    moveDistance = SDF.DiskCast(agent.Position, agent.MoveDir, agent.Radius, moveDistance);
+                    agent.IsMoving = true;
+                    if (!Mathf.Approximately(0, offSetAngle))
+                    {
+                        agent.MoveDir = RotateRadians(agent.StraightDir, offSetAngle * Mathf.Deg2Rad);
+                    }
+                    else 
+                    {
+                        agent.MoveDir = agent.StraightDir;
+                    }
                 }
-                moveDistance = ColliderMoveDistance(agent, agent.MoveDir, moveDistance);
-                Vector2 offset = moveDistance * agent.MoveDir;
-                agent.Position += offset;
             }
+        }
+    }
+
+    private void BuildStraightMoveBlockAngles(MoveableAgent agent, Vector2 dir, float distance)
+    {
+        foreach (var target in Agents)
+        {
+            if (agent == target)
+                continue;
+            Vector2 offset = target.Position - agent.Position;
+            float sqrMagnitude = offset.sqrMagnitude;
+            if (sqrMagnitude <= 1E-05f)
+                continue;//几乎重叠就允许移动直接忽略
+            if (sqrMagnitude >= Sqr(distance + agent.Radius + target.Radius))
+                continue;//不会发生碰撞就不处理
+            if (Sqr(agent.Radius - target.Radius) > sqrMagnitude)
+                continue;//一个在另外的内部就允许移动，让其走出去
+            float magnitude = Mathf.Sqrt(sqrMagnitude);
+            Vector2 normal = offset / magnitude;
+            //如果已经发生碰撞，则屏蔽其左右两侧90度
+            float offsetAngle = 90;
+            float targetAngle = Vector2.SignedAngle(dir, normal);
+            //magnitude <= agent.Radius + target.Radius;说明发生碰撞，直接屏蔽180度方向
+            if (magnitude > agent.Radius + target.Radius)
+            {
+                offsetAngle = Mathf.Asin((target.Radius + agent.Radius) / magnitude) * Mathf.Rad2Deg;
+            }
+            MoveBlock.AddRange(targetAngle - offsetAngle, targetAngle + offsetAngle);
+        }
+    }
+
+    public void Update(float dt)
+    {
+        UpdateMoveDir(dt);
+        //移动更新
+        foreach (var agent in Agents)
+        {
+            if (!agent.IsMoving)
+                continue;
+            float moveDistance = agent.Speed * dt;
+            if (moveDistance >= agent.Radius || SDF.Sample(agent.Position) < (agent.Radius + moveDistance))
+            {
+                moveDistance = SDF.DiskCast(agent.Position, agent.MoveDir, agent.Radius, moveDistance);
+            }
+            moveDistance = ColliderMoveDistance(agent, agent.MoveDir, moveDistance);
+            Vector2 offset = moveDistance * agent.MoveDir;
+            agent.Position += offset;
         }
     }
 
@@ -49,6 +115,8 @@ public class MoveManager
                 continue;//几乎重叠就允许移动
             if (sqrMagnitude >= Sqr(distance + agent.Radius + target.Radius))
                 continue;//不会发生碰撞就不处理
+            if (Sqr(agent.Radius - target.Radius) > sqrMagnitude)
+                continue;//一个在另外的内部就允许移动，让其走出去
             float magnitude = Mathf.Sqrt(sqrMagnitude);
             Vector2 normal = offset / magnitude;
             float dot = Vector2.Dot(normal, dir);
@@ -71,7 +139,12 @@ public class MoveManager
         }
         return distance;
     }
-
+    public static Vector2 RotateRadians(Vector2 v, float radians)
+    {
+        var ca = Mathf.Cos(radians);
+        var sa = Mathf.Sin(radians);
+        return new Vector2(ca * v.x - sa * v.y, sa * v.x + ca * v.y);
+    }
     private static float Sqr(float v)
     {
         return v * v;
