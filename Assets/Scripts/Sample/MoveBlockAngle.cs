@@ -39,32 +39,81 @@ public class MoveBlockAngle
         return leftAngle;
     }
 
-    public void AddRange(float min, float max)
+    public void AddAngle(float angle, float offset)
     {
-        if (min < -180)
+        float min = angle - offset;
+        float max = angle + offset;
+        if (angle <= 0)
         {
-            AddToRange(min + 360, 180, RightRange);
-            AddToRange(-180, max, LeftRange);
-            return;
-        }
-        if (max > 180)
-        {
-            AddToRange(-180, max - 360,LeftRange);
-            AddToRange(min, 180, RightRange);
-        }
-        if (min < 0 && max > 0)
-        {
-            AddToRange(min, 0, LeftRange);
-            AddToRange(0, max, RightRange);
-        }
-        else if (max < 0)
-        {
-            AddToRange(min, max, LeftRange);
+            AddToLeft(Mathf.Max(min, -180), Mathf.Min(max, 0));
+            if (min < -180)
+            {
+                AddToRight(360 + min, 180);
+            }
+            if (max > 0)
+            {
+                AddToRight(0, max);
+            }
         }
         else
         {
-            AddToRange(min, max, RightRange);
+            AddToRight(Mathf.Max(min, 0), Mathf.Max(max, 180));
+            if (min < 0)
+            {
+                AddToLeft(min, 0);
+            }
+            if (max > 180)
+            {
+                AddToLeft(-180, max - 360);
+            }
         }
+    }
+
+    private void AddToLeft(float min, float max)
+    {
+        int insertIdx = 0;
+        for (int i = 0; i < LeftRange.Count; ++i)
+        {
+            var r = LeftRange[i];
+            if (r.Max< min)
+            {
+                insertIdx = i;
+                break;
+            }
+            if (max < r.Min)
+            {
+                insertIdx++;
+                continue;
+            }
+            r.Min = Mathf.Min(min, r.Min);
+            r.Max = Mathf.Max(max, r.Max);
+            LeftRange[i] = r;
+            return;
+        }
+        LeftRange.Insert(insertIdx, new Range { Min = min, Max = max });
+    }
+    private void AddToRight(float min, float max)
+    {
+        int insertIdx = 0;
+        for (int i = 0; i < RightRange.Count; ++i)
+        {
+            var r = RightRange[i];
+            if (r.Min > max)
+            {
+                insertIdx = i;
+                break;
+            }
+            if (min > r.Max)
+            {
+                insertIdx++;
+                continue;
+            }
+            r.Min = Mathf.Min(min, r.Min);
+            r.Max = Mathf.Max(max, r.Max);
+            RightRange[i] = r;
+            return;
+        }
+        RightRange.Insert(insertIdx, new Range { Min = min, Max = max });
     }
 
     private void AddToRange(float min, float max, List<Range> range)

@@ -7,19 +7,22 @@ namespace SDFNav
         public static bool CheckStraightMove(this SDFData data, Vector2 from, Vector2 to, float moveRadius)
         {
             Vector2 diff = to - from;
-            float distance = diff.magnitude;
+            float distance = diff.sqrMagnitude;
             if (distance <= 1E-05f)
                 return true;
+            distance = Mathf.Sqrt(distance);
 
             diff /= distance;
 
-            float t = Mathf.Min(data.Grain, moveRadius);
+            float t = 0;
 
             while (true)
             {
-                if (data.Sample(from + diff * t) < moveRadius)
+                float sd = data.Sample(from + diff * t);
+                float step = sd - moveRadius;
+                if (step <= -0.001f)
                     return false;
-                t += data.Grain;
+                t += Mathf.Max(Mathf.Abs(step), 0.001f);
                 if (t >= distance)
                     return true;
             }
@@ -66,9 +69,10 @@ namespace SDFNav
             {
                 Vector2 p = origin + dir * (t + 0.001f);
                 sd = data.Sample(p);
-                if (sd <= radius)
+                float step = sd - radius;
+                if (step <= -0.001f)
                     return t;
-                t += (sd - radius);
+                t += Mathf.Max(Mathf.Abs(step), 0.001f);
                 if (t >= maxDistance)
                     return maxDistance;
             }
@@ -89,9 +93,10 @@ namespace SDFNav
             {
                 Vector2 p = origin + dir * (t + 0.001f);
                 float sd = data.Sample(p);
-                if (sd <= radius)
+                float step = sd - radius;
+                if (step <= -0.001f)
                     return t;
-                t += (sd - radius);
+                t += Mathf.Max(Mathf.Abs(step), 0.001f);
                 if (t >= maxDistance)
                     return maxDistance;
             }

@@ -78,17 +78,17 @@ public class OperatePanel
             scrollPos = scroll.scrollPosition;
             foreach (var agent in Manager.Move.Agents)
             {
-                bool isSelect = SelectAgents.Contains(agent.ID);
-                bool res = GUILayout.Toggle(isSelect, $"{agent.ID}");
-                if (res != isSelect)
-                {
-                    if (res)
-                        SelectAgents.Add(agent.ID);
-                    else
-                        SelectAgents.Remove(agent.ID);
-                }
                 using (new GUILayout.HorizontalScope())
                 {
+                    bool isSelect = SelectAgents.Contains(agent.ID);
+                    bool res = GUILayout.Toggle(isSelect, $"{agent.ID}");
+                    if (res != isSelect)
+                    {
+                        if (res)
+                            SelectAgents.Add(agent.ID);
+                        else
+                            SelectAgents.Remove(agent.ID);
+                    }
                     if (GUILayout.Toggle(agent.Type == MoveType.None, "无"))
                         agent.Type = MoveType.None;
                     if (GUILayout.Toggle(agent.Type == MoveType.Straight, "直线"))

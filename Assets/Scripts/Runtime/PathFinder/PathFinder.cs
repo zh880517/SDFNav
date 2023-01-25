@@ -55,11 +55,10 @@ namespace SDFNav
                 || SDF.CheckStraightMove(start, end, radius))
             {
                 reversePath.Add(end);
-                reversePath.Add(start);
                 return true;
             }
             Clear();
-            moveRadius = radius - SDF.Grain * 0.25f;//做个轻微修正，防止部分贴边情况导致的无法计算路径
+            moveRadius = radius;
             var startLocation = GetValidLocationByNeighbor(start, radius);
             if (!startLocation.Valid || !IsWalkable(startLocation))
                 return false;
@@ -77,7 +76,6 @@ namespace SDFNav
                     reversePath.Add(pos);
                     node = node.parent;
                 }
-                reversePath.Add(start);
                 return true;
             }
             return false;

@@ -9,6 +9,7 @@ public class SampleManager : MonoBehaviour
     public TextAsset SDFAsset;
     public float AgentRadius = 0.5f;
     public float Speed = 2;
+    public float CloseDistance = 0.5f;
     public Dictionary<int, GameObject> AgentPrefabs = new Dictionary<int, GameObject>();
     public MoveManager Move = new MoveManager();
     private OperatePanel panel = new OperatePanel();
@@ -58,6 +59,7 @@ public class SampleManager : MonoBehaviour
         {
             Vector2 dir = pos - agent.Position;
             agent.StraightDir = dir.normalized;
+            agent.Path.Clear();
         }
         else if (agent.Type == MoveType.Path)
         {
@@ -73,6 +75,7 @@ public class SampleManager : MonoBehaviour
 
     private void Update()
     {
+        Move.CloseDistance = CloseDistance;
         Move.Update(Time.deltaTime);
         foreach (var angent in Move.Agents)
         {

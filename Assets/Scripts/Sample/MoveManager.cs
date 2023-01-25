@@ -5,6 +5,7 @@ using UnityEngine;
 public class MoveManager
 {
     public SDFData SDF = new SDFData();
+    public float CloseDistance = 0.5f;
     public List<MoveableAgent> Agents = new List<MoveableAgent>();
     private MoveBlockAngle MoveBlock = new MoveBlockAngle();
     private int keyIndex;
@@ -25,22 +26,63 @@ public class MoveManager
         foreach (var agent in Agents)
         {
             agent.IsMoving = false;
-            if (agent.Type == MoveType.Straight)
+            if (agent.Type == MoveType.None)
+                continue;
+            bool isMoving = agent.Type == MoveType.Straight;
+            if (agent.Type == MoveType.Path && agent.Path.Count > 0)
             {
-                MoveBlock.Clear();
-                float moveDistance = dt * agent.Speed;
-                BuildStraightMoveBlockAngles(agent, agent.StraightDir, moveDistance);
-                float adjustAngle = MoveBlock.GetMinOffsetAngle();
-                if (adjustAngle >= -90 && adjustAngle <= 90)
+                Vector2 diff = agent.Path[agent.Path.Count - 1] - agent.Position;
+                if (diff.sqrMagnitude < Sqr(agent.Speed * dt))
                 {
-                    agent.IsMoving = true;
-                    if (!Mathf.Approximately(0, adjustAngle))
+                    agent.Path.RemoveAt(agent.Path.Count - 1);
+                }
+                if (agent.Path.Count >= 2)
+                {
+                    if (SDF.CheckStraightMove(agent.Position, agent.Path[agent.Path.Count - 2], agent.Radius))
+                    {
+                        agent.Path.RemoveAt(agent.Path.Count - 1);
+                    }
+                }
+                else if(agent.Path.Count > 0)
+                {
+                    if (Vector2.Distance(agent.Position, agent.Path[0]) < agent.Speed * dt)
+                    {
+                        agent.Path.Clear();
+                    }
+                }
+                if (agent.Path.Count > 0)
+                {
+                    isMoving = true;
+                    agent.StraightDir = (agent.Path[agent.Path.Count - 1] - agent.Position).normalized;
+                }
+            }
+            if (isMoving)
+            {
+                agent.IsMoving = true;
+                agent.MoveDir = agent.StraightDir;
+                MoveBlock.Clear();
+
+                float moveDistance = dt * agent.Speed;
+                if (agent.Type == MoveType.Straight)
+                {
+                    BuildStraightMoveBlockAngles(agent, agent.StraightDir, moveDistance);
+                    float adjustAngle = MoveBlock.GetMinOffsetAngle();
+                    if (!Mathf.Approximately(0, adjustAngle) && adjustAngle > -90 && adjustAngle < 90)
                     {
                         agent.MoveDir = RotateRadians(agent.StraightDir, adjustAngle * Mathf.Deg2Rad);
                     }
-                    else 
+                }
+                else if(agent.Type == MoveType.Path)
+                {
+                    BuildPathFindMoveBlockAngles(agent, agent.StraightDir, moveDistance, dt);
+                    float adjustAngle = MoveBlock.GetMinOffsetAngle();
+                    if (adjustAngle < -179 || adjustAngle > 179)
                     {
-                        agent.MoveDir = agent.StraightDir;
+                        agent.IsMoving = false;
+                    }
+                    else if (!Mathf.Approximately(0, adjustAngle))
+                    {
+                        agent.MoveDir = RotateRadians(agent.StraightDir, adjustAngle * Mathf.Deg2Rad);
                     }
                 }
             }
@@ -71,7 +113,7 @@ public class MoveManager
             {
                 offsetAngle = Mathf.Asin((target.Radius + agent.Radius) / magnitude) * Mathf.Rad2Deg;
             }
-            MoveBlock.AddRange(targetAngle - offsetAngle, targetAngle + offsetAngle);
+            MoveBlock.AddAngle(targetAngle, offsetAngle);
         }
     }
 
@@ -85,22 +127,29 @@ public class MoveManager
             float sqrMagnitude = offset.sqrMagnitude;
             if (sqrMagnitude <= 1E-05f)
                 continue;//几乎重叠就允许移动直接忽略
-            float targetMoveDistance = target.IsMoving ? target.Speed * dt : 0;
-            if (sqrMagnitude >= Sqr(distance + agent.Radius + target.Radius + targetMoveDistance))
-                continue;//不会发生碰撞就不处理
             if (Sqr(agent.Radius - target.Radius) > sqrMagnitude)
                 continue;//一个在另外的内部就允许移动，让其走出去
+            float targetMoveDistance = target.IsMoving ? target.Speed * dt : 0;
+            if (sqrMagnitude >= Sqr(distance + agent.Radius + target.Radius + targetMoveDistance + CloseDistance))
+                continue;//不会发生碰撞就不处理
             float magnitude = Mathf.Sqrt(sqrMagnitude);
             Vector2 normal = offset / magnitude;
             //如果已经发生碰撞，则屏蔽其左右两侧90度
-            float offsetAngle = 90;
             float targetAngle = Vector2.SignedAngle(dir, normal);
-            //magnitude <= agent.Radius + target.Radius;说明发生碰撞，直接屏蔽180度方向
-            if (magnitude > agent.Radius + target.Radius)
+            float targetRadius = target.Radius + targetMoveDistance + CloseDistance;
+            float selfRadius = agent.Radius + distance;
+            if (magnitude <= selfRadius + targetRadius)
             {
-                offsetAngle = Mathf.Asin((target.Radius + agent.Radius) / magnitude) * Mathf.Rad2Deg;
+                //说明发生碰撞，直接屏蔽90 + 目标中心到两圆交点 与两个圆心连线的夹角
+                float a = Mathf.Acos((targetRadius * targetRadius + sqrMagnitude - selfRadius* selfRadius)/(2*targetRadius * magnitude));
+                MoveBlock.AddAngle(targetAngle, 90 + a);
             }
-            MoveBlock.AddRange(targetAngle - offsetAngle, targetAngle + offsetAngle);
+            else //if (targetMoveDistance <= 0)
+            {
+                //如果目标没有移动，计算当前可能发生碰撞的移动方向范围
+                float offsetAngle = Mathf.Asin((targetRadius + selfRadius) / magnitude) * Mathf.Rad2Deg;
+                MoveBlock.AddAngle(targetAngle, offsetAngle);
+            }
         }
     }
 
@@ -117,15 +166,18 @@ public class MoveManager
             //擦墙调整
             Vector2 newPos = agent.Position + moveDir * moveDistance;
             float sd = SDF.Sample(newPos);
-            if (sd < agent.Radius)
+            if (sd < (agent.Radius + 0.001f))
             {
                 var gradient = SDF.Gradiend(newPos).normalized;
                 newPos = newPos + (agent.Radius - sd + 0.001f) * gradient;
                 Vector2 diff = newPos - agent.Position;
                 float magnitude = diff.magnitude;
-                moveDir = diff / magnitude;
-                if (magnitude <= moveDistance)
-                    moveDistance = magnitude;
+                if (magnitude > 0.0001f)
+                {
+                    moveDir = diff / magnitude;
+                    if (magnitude <= moveDistance)
+                        moveDistance = magnitude;
+                }
             }
             if (moveDistance >= agent.Radius || SDF.Sample(agent.Position) < (agent.Radius + moveDistance))
             {
