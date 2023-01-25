@@ -59,11 +59,11 @@ namespace SDFNav
                 return true;
             }
             Clear();
-            moveRadius = radius - 0.01f;//做个轻微修正，防止部分贴边情况导致的无法计算路径
-            var startLocation = GetLocation(start);
+            moveRadius = radius - SDF.Grain * 0.25f;//做个轻微修正，防止部分贴边情况导致的无法计算路径
+            var startLocation = GetValidLocationByNeighbor(start, radius);
             if (!startLocation.Valid || !IsWalkable(startLocation))
                 return false;
-            endLocation = GetLocation(end);
+            endLocation = GetValidLocationByNeighbor(end, radius);
             if (!endLocation.Valid || !IsWalkable(endLocation))
                 return false;
             var startNode = GetNode(startLocation);
@@ -82,6 +82,31 @@ namespace SDFNav
             }
             return false;
         }
+
+        private GridLocation GetValidLocationByNeighbor(Vector2 pos, float radius)
+        {
+            var location = GetLocation(pos);
+            if (IsWalkable(location, radius))
+                return location;
+            GridLocation newLocation = GridLocation.Empty;
+            float sd = location.Valid ? SDF[location.Index] : float.MinValue;
+            for (Direction dir = Direction.Top; dir <= Direction.BottomRight; ++dir)
+            {
+                var neighbor = GetNeighbor(location, dir);
+                if (neighbor.Valid)
+                {
+                    float v = SDF[neighbor.Index];
+                    if (v > sd)
+                    {
+                        newLocation = neighbor;
+                        sd = v;
+                    }
+                }
+            }
+
+            return newLocation;
+        }
+
         private void Clear()
         {
             openMask.SetAll(false);
@@ -152,6 +177,11 @@ namespace SDFNav
         protected bool IsWalkable(in GridLocation location)
         {
             return location.Index >= 0 && SDF[location.Index] >= moveRadius;
+        }
+
+        protected bool IsWalkable(in GridLocation location, float radius)
+        {
+            return location.Index >= 0 && SDF[location.Index] >= radius;
         }
 
         protected void SetClose(in GridLocation location)

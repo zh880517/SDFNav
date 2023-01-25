@@ -12,6 +12,7 @@ public class SampleManager : MonoBehaviour
     public Dictionary<int, GameObject> AgentPrefabs = new Dictionary<int, GameObject>();
     public MoveManager Move = new MoveManager();
     private OperatePanel panel = new OperatePanel();
+    private JPSPathFinder PathFinder;
     private void Awake()
     {
         panel.Manager = this;
@@ -24,6 +25,7 @@ public class SampleManager : MonoBehaviour
                 panel.ValidRect.min = Move.SDF.Origin;
                 panel.ValidRect.width = Move.SDF.Width * Move.SDF.Grain;
                 panel.ValidRect.height = Move.SDF.Height * Move.SDF.Grain;
+                PathFinder = new JPSPathFinder(Move.SDF);
             }
         }
     }
@@ -52,10 +54,21 @@ public class SampleManager : MonoBehaviour
 
     public void MoveAgent(MoveableAgent agent, Vector2 pos)
     {
-        agent.IsMoving = true;
-        Vector2 dir = pos - agent.Position;
-        agent.StraightDir = dir.normalized;
-        agent.Type = MoveType.Straight;
+        if (agent.Type == MoveType.Straight)
+        {
+            Vector2 dir = pos - agent.Position;
+            agent.StraightDir = dir.normalized;
+        }
+        else if (agent.Type == MoveType.Path)
+        {
+            pos = Move.SDF.FindNearestValidPoint(pos, agent.Radius);
+            agent.Path.Clear();
+            if (!PathFinder.Find(agent.Position, pos, agent.Radius, agent.Path))
+            {
+                agent.Path.Add(pos);
+                Debug.LogError("寻路失败");
+            }
+        }
     }
 
     private void Update()
@@ -81,6 +94,6 @@ public class SampleManager : MonoBehaviour
 
     private void OnDrawGizmos()
     {
-        panel.OnGizmos();
+        panel?.OnGizmos();
     }
 }

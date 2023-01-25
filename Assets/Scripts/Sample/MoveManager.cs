@@ -42,27 +42,6 @@ public class MoveManager
                     {
                         agent.MoveDir = agent.StraightDir;
                     }
-                    Vector2 newPos = agent.Position + agent.MoveDir * moveDistance;
-                    float sd = SDF.Sample(newPos);
-                    if (sd < agent.Radius + moveDistance)
-                    {
-                        Vector2 gradient = SDF.Gradiend(newPos).normalized;
-                        Vector2 adjustDir = agent.MoveDir - gradient * Vector2.Dot(gradient, agent.MoveDir);
-                        newPos = agent.Position + adjustDir * moveDistance;
-                        for (int i=0; i<3; i++)
-                        {
-                            sd = SDF.Sample(newPos);
-                            if (sd >= agent.Radius)
-                            {
-                                newPos += SDF.Gradiend(newPos).normalized * (agent.Radius - sd);
-                            }
-                        }
-                        adjustDir = newPos - agent.Position;
-                        if (Vector2.Dot(adjustDir, agent.MoveDir) > 0)
-                        {
-                            agent.MoveDir = adjustDir.normalized;
-                        }
-                    }
                 }
             }
         }
@@ -96,6 +75,35 @@ public class MoveManager
         }
     }
 
+    private void BuildPathFindMoveBlockAngles(MoveableAgent agent, Vector2 dir, float distance, float dt)
+    {
+        foreach (var target in Agents)
+        {
+            if (agent == target)
+                continue;
+            Vector2 offset = target.Position - agent.Position;
+            float sqrMagnitude = offset.sqrMagnitude;
+            if (sqrMagnitude <= 1E-05f)
+                continue;//几乎重叠就允许移动直接忽略
+            float targetMoveDistance = target.IsMoving ? target.Speed * dt : 0;
+            if (sqrMagnitude >= Sqr(distance + agent.Radius + target.Radius + targetMoveDistance))
+                continue;//不会发生碰撞就不处理
+            if (Sqr(agent.Radius - target.Radius) > sqrMagnitude)
+                continue;//一个在另外的内部就允许移动，让其走出去
+            float magnitude = Mathf.Sqrt(sqrMagnitude);
+            Vector2 normal = offset / magnitude;
+            //如果已经发生碰撞，则屏蔽其左右两侧90度
+            float offsetAngle = 90;
+            float targetAngle = Vector2.SignedAngle(dir, normal);
+            //magnitude <= agent.Radius + target.Radius;说明发生碰撞，直接屏蔽180度方向
+            if (magnitude > agent.Radius + target.Radius)
+            {
+                offsetAngle = Mathf.Asin((target.Radius + agent.Radius) / magnitude) * Mathf.Rad2Deg;
+            }
+            MoveBlock.AddRange(targetAngle - offsetAngle, targetAngle + offsetAngle);
+        }
+    }
+
     public void Update(float dt)
     {
         UpdateMoveDir(dt);
@@ -105,12 +113,26 @@ public class MoveManager
             if (!agent.IsMoving)
                 continue;
             float moveDistance = agent.Speed * dt;
+            Vector2 moveDir = agent.MoveDir;
+            //擦墙调整
+            Vector2 newPos = agent.Position + moveDir * moveDistance;
+            float sd = SDF.Sample(newPos);
+            if (sd < agent.Radius)
+            {
+                var gradient = SDF.Gradiend(newPos).normalized;
+                newPos = newPos + (agent.Radius - sd + 0.001f) * gradient;
+                Vector2 diff = newPos - agent.Position;
+                float magnitude = diff.magnitude;
+                moveDir = diff / magnitude;
+                if (magnitude <= moveDistance)
+                    moveDistance = magnitude;
+            }
             if (moveDistance >= agent.Radius || SDF.Sample(agent.Position) < (agent.Radius + moveDistance))
             {
-                moveDistance = SDF.TryMoveTo(agent.Position, agent.MoveDir, agent.Radius, moveDistance);
+                moveDistance = SDF.TryMoveTo(agent.Position, moveDir, agent.Radius, moveDistance);
             }
-            moveDistance = ColliderMoveDistance(agent, agent.MoveDir, moveDistance);
-            Vector2 offset = moveDistance * agent.MoveDir;
+            moveDistance = ColliderMoveDistance(agent, moveDir, moveDistance);
+            Vector2 offset = moveDistance * moveDir;
             agent.Position += offset;
         }
     }

@@ -87,6 +87,15 @@ public class OperatePanel
                     else
                         SelectAgents.Remove(agent.ID);
                 }
+                using (new GUILayout.HorizontalScope())
+                {
+                    if (GUILayout.Toggle(agent.Type == MoveType.None, "无"))
+                        agent.Type = MoveType.None;
+                    if (GUILayout.Toggle(agent.Type == MoveType.Straight, "直线"))
+                        agent.Type = MoveType.Straight;
+                    if (GUILayout.Toggle(agent.Type == MoveType.Path, "寻路"))
+                        agent.Type = MoveType.Path;
+                }
             }
         }
         using(new GUILayout.HorizontalScope())
@@ -115,6 +124,23 @@ public class OperatePanel
 
     public void OnGizmos()
     {
-
+        if (Manager == null || Manager.Move == null)
+            return;
+        Color color = Gizmos.color;
+        Gizmos.color = Color.red;
+        foreach (var agent in Manager.Move.Agents)
+        {
+            if (agent.Type == MoveType.Path && agent.Path.Count > 0)
+            {
+                Vector2 pos = agent.Position;
+                for (int i = agent.Path.Count - 1; i>=0; --i)
+                {
+                    var pt = agent.Path[i];
+                    Gizmos.DrawLine(new Vector3(pos.x, 0.5f, pos.y), new Vector3(pt.x, 0.5f, pt.y));
+                    pos = pt;
+                }
+            }
+        }
+        Gizmos.color = color;
     }
 }

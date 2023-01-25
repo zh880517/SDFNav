@@ -39,12 +39,16 @@ namespace SDFNav
         public static Vector2 FindNearestValidPoint(this SDFData data, Vector2 point, float radius)
         {
             Vector2 newPos = point;
-            for (int i=0; i<3; ++i)
+            for (int i=0; i<10; ++i)
             {
                 float sdf = data.Sample(newPos);
                 if (sdf >= radius)
                    break;
-                newPos += Gradiend(data, newPos).normalized * (radius - sdf);
+                float t = radius - sdf;
+                if (t > 0)
+                    t = Mathf.Max(t, 0.001f);
+
+                newPos += Gradiend(data, newPos).normalized * t;
             }
             return newPos;
 
@@ -52,42 +56,21 @@ namespace SDFNav
 
         public static float TryMoveTo(this SDFData data, Vector2 origin, Vector2 dir, float radius, float maxDistance)
         {
-            float sdBefore = data.Sample(origin);
-            if (sdBefore < 0)
+            float sd = data.Sample(origin);
+            if (sd < 0)
                 return 0;
-            if (radius + maxDistance <= (sdBefore + 0.00001))
-                return maxDistance;
-            if (sdBefore < radius)
+            float t = 0;
+            if (radius > sd)
+                radius = sd;
+            while (true)
             {
-                float t = 0;
-                float step = 0.01f;
-                while (true)
-                {
-                    Vector2 p = origin + dir * (t + step);
-                    float sd = data.Sample(p);
-                    //sd <= sdBefore 是为了处理初始位置已经卡在障碍物边缘，如果移动的方向越来越开阔，说明是远离障碍物
-                    if (sd <= radius && sd <= sdBefore)
-                        return t;
-                    sdBefore = sd;
-                    t += step;
-                    step = Mathf.Abs(sd - radius);
-                    if (t >= maxDistance)
-                        return maxDistance;
-                }
-            }
-            else
-            {
-                float t = 0;
-                while (true)
-                {
-                    Vector2 p = origin + dir * (t + 0.01f);
-                    float sd = data.Sample(p);
-                    if (sd <= radius)
-                        return t;
-                    t += (sd - radius);
-                    if (t >= maxDistance)
-                        return maxDistance;
-                }
+                Vector2 p = origin + dir * (t + 0.001f);
+                sd = data.Sample(p);
+                if (sd <= radius)
+                    return t;
+                t += (sd - radius);
+                if (t >= maxDistance)
+                    return maxDistance;
             }
         }
 
@@ -104,7 +87,7 @@ namespace SDFNav
             }
             while (true)
             {
-                Vector2 p = origin + dir * (t + 0.01f);
+                Vector2 p = origin + dir * (t + 0.001f);
                 float sd = data.Sample(p);
                 if (sd <= radius)
                     return t;
