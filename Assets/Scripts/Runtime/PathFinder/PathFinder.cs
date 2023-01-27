@@ -70,7 +70,7 @@ namespace SDFNav
             if (startNode != null && endNode != null && Search(startNode))
             {
                 var node = endNode;
-                while (node.parent != null)
+                while (node.parent != null)//最后一个是起点，所以不用加到队列里面
                 {
                     Vector2 pos = new Vector2(node.location.X * SDF.Grain, node.location.Y * SDF.Grain) + SDF.Origin;
                     reversePath.Add(pos);

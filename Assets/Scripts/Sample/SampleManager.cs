@@ -11,9 +11,10 @@ public class SampleManager : MonoBehaviour
     public float Speed = 2;
     public float CloseDistance = 0.5f;
     public Dictionary<int, GameObject> AgentPrefabs = new Dictionary<int, GameObject>();
-    public MoveManager Move = new MoveManager();
+    public List<MoveableAgent> Agents = new List<MoveableAgent>();
+    private int keyIndex;
     private OperatePanel panel = new OperatePanel();
-    private JPSPathFinder PathFinder;
+    private SDFNavContext Context;
     private void Awake()
     {
         panel.Manager = this;
@@ -21,12 +22,14 @@ public class SampleManager : MonoBehaviour
         {
             using(BinaryReader reader = new BinaryReader(stream))
             {
-                Move.SDF.Read(reader);
-                SDFDebugUtil.CreateVisableObj(Move.SDF);
-                panel.ValidRect.min = Move.SDF.Origin;
-                panel.ValidRect.width = Move.SDF.Width * Move.SDF.Grain;
-                panel.ValidRect.height = Move.SDF.Height * Move.SDF.Grain;
-                PathFinder = new JPSPathFinder(Move.SDF);
+                var sdf = new SDFData();
+                sdf.Read(reader);
+                Context = new SDFNavContext();
+                Context.Init(sdf);
+                panel.ValidRect.min = sdf.Origin;
+                panel.ValidRect.width = sdf.Width * sdf.Grain;
+                panel.ValidRect.height = sdf.Height * sdf.Grain;
+                SDFDebugUtil.CreateVisableObj(sdf);
             }
         }
     }
@@ -35,7 +38,14 @@ public class SampleManager : MonoBehaviour
     public int CreateAgent(Vector2 pos)
     {
         float scale = AgentRadius / 0.5f;
-        var agent = Move.CreateAgent(pos, AgentRadius, Speed);
+        MoveableAgent agent = new MoveableAgent();
+        agent.ID = ++keyIndex;
+        pos = Context.FindNearestValidPoint(pos, AgentRadius);
+        agent.Position = pos;
+        agent.Radius = AgentRadius;
+        agent.Speed = Speed;
+        Agents.Add(agent);
+
         var go = Instantiate(AgentPrefab, new Vector3(pos.x, 0, pos.y), Quaternion.identity);
         go.transform.localScale = new Vector3(scale, 1, scale);
         go.name = $"Agent_{agent.ID}";
@@ -49,7 +59,7 @@ public class SampleManager : MonoBehaviour
         {
             Destroy(go);
             AgentPrefabs.Remove(id);
-            Move.Agents.RemoveAll(it=>it.ID == id);
+            Agents.RemoveAll(it=>it.ID == id);
         }
     }
 
@@ -59,25 +69,109 @@ public class SampleManager : MonoBehaviour
         {
             Vector2 dir = pos - agent.Position;
             agent.StraightDir = dir.normalized;
-            agent.Path.Clear();
+            agent.NavPath.Clear();
         }
         else if (agent.Type == MoveType.Path)
         {
-            pos = Move.SDF.FindNearestValidPoint(pos, agent.Radius);
-            agent.Path.Clear();
-            if (!PathFinder.Find(agent.Position, pos, agent.Radius, agent.Path))
+            agent.NavPath.Clear();
+            pos = Context.FindNearestValidPoint(pos, agent.Radius);
+            if (!Context.PathFinder.Find(agent.Position, pos, agent.Radius, agent.NavPath.Path))
             {
-                agent.Path.Add(pos);
+                agent.NavPath.Path.Add(pos);
                 Debug.LogError("寻路失败");
             }
         }
     }
 
+    private void UpdateMove(float dt)
+    {
+        foreach (var agent in Agents)
+        {
+            if (agent.Type == MoveType.None)
+                continue;
+            MoveAgentInfo info = new MoveAgentInfo
+            {
+                Radius = agent.Radius,
+                Position = agent.Position,
+                MoveDistance = agent.Speed * dt,
+            };
+            Context.Clear();
+            if (agent.Type == MoveType.Straight)
+            {
+                SelectNeighbor(agent, CloseDistance, dt, Context.Neighbors);
+                info.Direction = agent.StraightDir;
+                Context.AdjustMoveByNeighbor(ref info);
+                Context.AdjustMoveByObstacle(ref info);
+            }
+            else if(agent.Type == MoveType.Path && !agent.NavPath.HasFinished)
+            {
+                Context.OptimizePath(info, agent.NavPath, CloseDistance);
+                if (!agent.NavPath.HasFinished)
+                {
+                    Vector2 nextPoint = agent.NavPath.Path[^1];
+                    float selectRange = CloseDistance;
+                    if (agent.NavPath.HasAdjustDirection)
+                        selectRange = Mathf.Max(selectRange, Vector2.Distance(nextPoint, info.Position) - info.Radius);
+
+                    SelectNeighbor(agent, selectRange, dt, Context.Neighbors);
+                    Context.NavDestinationCheck(info, agent.NavPath, CloseDistance);
+                    Context.AdjustMoveByPathMove(ref info, agent.NavPath, CloseDistance);
+                }
+            }
+            if (info.MoveDistance > 0)
+            {
+                info.MoveDistance = Context.ColliderMoveByObstacle(info);
+                info.MoveDistance = Context.ColliderMoveByNeighbor(info);
+                agent.Position += info.Direction * info.MoveDistance;
+                agent.MoveDir = info.Direction;
+            }
+        }
+    }
+    public void SelectNeighbor(MoveableAgent agent, float closeDistance, float dt, List<NeighborAgentInfo> neighbors)
+    {
+        foreach (var target in Agents)
+        {
+            if (agent == target)
+                continue;
+            Vector2 offset = target.Position - agent.Position;
+            float sqrMagnitude = offset.sqrMagnitude;
+            if (NavigationUtil.Sqr(agent.Radius + target.Radius + closeDistance + target.Speed * dt) < sqrMagnitude)
+                continue;
+            float magnitude = Mathf.Sqrt(sqrMagnitude);
+            if (sqrMagnitude <= NavigationUtil.Epsilon)
+            {
+                offset = Vector2.zero;
+                magnitude = 0;
+            }
+            else
+            {
+                offset /= magnitude;
+            }
+            NeighborAgentInfo neighbor = new NeighborAgentInfo
+            {
+                ID = target.ID,
+                Direction = offset,
+                Radius = target.Radius,
+                Distance = magnitude,
+                MoveDistance = target.Speed * dt,
+            };
+            int insertIdx = neighbors.Count;
+            for (int i = 0; i < neighbors.Count; ++i)
+            {
+                if (neighbors[i].Distance > magnitude)
+                {
+                    insertIdx = i;
+                    break;
+                }
+            }
+            neighbors.Insert(insertIdx, neighbor);
+        }
+    }
+
     private void Update()
     {
-        Move.CloseDistance = CloseDistance;
-        Move.Update(Time.deltaTime);
-        foreach (var angent in Move.Agents)
+        UpdateMove(Time.deltaTime);
+        foreach (var angent in Agents)
         {
             if (AgentPrefabs.TryGetValue(angent.ID, out var go))
             {

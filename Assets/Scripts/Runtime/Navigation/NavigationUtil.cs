@@ -1,0 +1,312 @@
+using UnityEngine;
+
+/*移动处理
+ * ->摇杆控制的直线移动
+ *   ->AdjustMoveByNeighbor 选取周围的其它角色，如果相撞，调整移动方向让其从旁边绕开
+ *   ->AdjustMoveByObstacle 如果目标点在障碍物内部，则让其沿着障碍物边缘移动
+ * ->寻路方式的移动：先计算到目标点的路径Path
+ *   ->OptimizePath 如果路径点个数大于1，则取倒数第二个路径点，计算当前位置到改点是否被障碍物阻挡，如果没有，则移除最后一个路径点
+ *   ->AdjustMoveByPathMove 修正当前移动方向
+ * ->最终处理：和障碍物以及其它相邻角色进行碰撞处理，得出最终的移动位置
+ */
+
+namespace SDFNav
+{
+    public static class NavigationUtil
+    {
+        public const float Epsilon = 1E-05f;
+
+        public static Vector2 FindNearestValidPoint(this SDFNavContext nav, Vector2 point, float radius)
+        {
+            return nav.SDFMap.FindNearestValidPoint(point, radius);
+        }
+
+        public static void OptimizePath(this SDFNavContext nav, in MoveAgentInfo agent, NavPathMoveInfo path, float spaceToNeighbor)
+        {
+            if (path.HasFinished)
+                return;
+            float distance = Vector2.Distance(path.Path[^1], agent.Position);
+            if (distance < agent.MoveDistance)//如果到下一个目标点的距离小于移动距离就停止移动了，因为再移动会穿过去
+            {
+                path.RemoveLastPoint();
+            }
+            if (path.Path.Count > 1)
+            {
+                //寻路路点本来就是不平滑的，有很多多余的点，每次移动时从开始进行检查，这样会逐步平滑移动路径
+                //移动过程中目标点也可能改变目标点导致重新寻路，这样可以省掉不必要的处理
+                //同时也可以处理因为碰撞导致位置偏移路径，不好判断是否移动到下个路径点的问题
+                if (nav.SDFMap.CheckStraightMove(agent.Position, path.Path[^2], agent.Radius))
+                {
+                    path.RemoveLastPoint();
+                }
+            }
+            
+        }
+
+        public static void NavDestinationCheck(this SDFNavContext nav, in MoveAgentInfo agent, NavPathMoveInfo path, float spaceToNeighbor)
+        {
+            //仅剩下最后一个路点时
+            if (path.Path.Count == 1)
+            {
+                //处理是否达到下一个终点
+                Vector2 nextPoint = path.Path[^1];
+                float distance = Vector2.Distance(nextPoint, agent.Position);
+                if (distance < agent.MoveDistance)
+                {
+                    path.RemoveLastPoint();
+                    return;
+                }
+                int idx = OverlapPointNeighbor(nav, agent, nextPoint);
+                if (idx >= 0)
+                {
+                    var neighbor = nav.Neighbors[idx];
+                    float space = neighbor.Distance - neighbor.Radius - agent.Radius;
+                    if (space < spaceToNeighbor)
+                        return;//距离过远，还可以继续移动
+                    path.RemoveLastPoint();
+                }
+            }
+        }
+
+        public static int OverlapPointNeighbor(SDFNavContext nav, in MoveAgentInfo agent, Vector2 point)
+        {
+            for(int i=0; i< nav.Neighbors.Count; ++i)
+            {
+                var neighbor = nav.Neighbors[i];
+                Vector2 targetPos = agent.Position + neighbor.Direction * neighbor.Distance;
+                float sqrMagnitude = (targetPos - point).sqrMagnitude;
+                if (sqrMagnitude < Sqr(neighbor.Radius))
+                {
+                    return i;
+                }
+            }
+            return -1;
+        }
+
+        //调整寻路移动过程中的移动方向
+        public static bool AdjustMoveByPathMove(this SDFNavContext nav, ref MoveAgentInfo agent, NavPathMoveInfo path, float spaceToNeighbor)
+        {
+            if (path.Path.Count == 0)
+            {
+                path.Clear();
+                return false;
+            }
+            Vector2 targetPoint = path.Path[^1];
+            Vector2 direction = targetPoint - agent.Position;
+            float distance = direction.magnitude;
+            if (distance <= Epsilon)
+            {
+                //路径点已经处理过，理论上不会出现这种情况
+                path.RemoveLastPoint();
+                path.LastMoveDirection = Vector2.zero;
+                path.HasAdjustDirection = false;
+                return AdjustMoveByPathMove(nav, ref agent, path, spaceToNeighbor);
+            }
+            direction /= distance;
+            agent.Direction = direction;
+            bool usePathDir = true;
+            nav.MoveBlock.Clear();
+            //if (path.HasAdjustDirection)//上一次的移动已经调整过角度，并不是按照目标点方向进行移动
+            //{
+            //    if (!MoveTest(nav, direction, agent.Radius, distance - agent.Radius))
+            //    {
+            //        //检查到目标点的路径上有其它的角色，如果有其它角色
+            //        //那么这次就不能按照目标方向为基准记性移动方向调整
+            //        //这样做的目的是为了让其绕过阻挡它的其它角色防止被卡在几个角色之间不停的往返移动
+            //        agent.Direction = path.LastMoveDirection;
+            //        var nearstNeighbor = nav.Neighbors[0];
+            //        if (nearstNeighbor.Distance > (nearstNeighbor.Radius + agent.Radius + spaceToNeighbor * 2))
+            //        {
+            //            float offsetAngle = Angle360(path.LastMoveDirection, direction);
+            //            agent.Direction = Rotate(path.LastMoveDirection, offsetAngle * 0.1f);
+            //        }
+            //        //BuildMoveDirectionRange(nav, agent, spaceToNeighbor);
+            //
+            //        usePathDir = false;
+            //    }
+            //    else
+            //    {
+            //        path.HasAdjustDirection = false;
+            //    }
+            //}
+            BuildMoveDirectionRange(nav, agent, spaceToNeighbor);
+            float adjustAngle = nav.MoveBlock.GetMinOffsetAngle();
+            float absAngle = Mathf.Abs(adjustAngle);
+            if (usePathDir && (absAngle <= Epsilon || absAngle > 179))
+                return false;
+            path.HasAdjustDirection = true;
+            if (absAngle > Epsilon && absAngle < 179)
+            {
+                agent.Direction = Rotate(agent.Direction, adjustAngle);
+            }
+            path.LastMoveDirection = agent.Direction;
+            return true;
+        }
+
+        private static void BuildMoveDirectionRange(this SDFNavContext nav, in MoveAgentInfo agent, float spaceToNeighbor)
+        {
+            foreach (var neighbor in nav.Neighbors)
+            {
+                if (neighbor.Distance <= Epsilon)
+                    continue;//中心重叠
+                if (Mathf.Abs(agent.Radius - neighbor.Radius) > neighbor.Distance)
+                    continue;//完全在另外一个的内部
+                float radius = neighbor.MoveDistance + spaceToNeighbor +neighbor.Radius;
+                if (agent.Radius + agent.MoveDistance + radius < neighbor.Distance)
+                    continue;//不会发生碰撞
+                float targetAngle = Angle360(agent.Direction, neighbor.Direction);
+                if (neighbor.Distance <= agent.Radius + radius)
+                {
+                    //说明会发生碰撞，直接屏蔽90 + 目标中心到两圆交点 与两个圆心连线的夹角
+                    float a = Mathf.Acos((Sqr(radius) + Sqr(neighbor.Distance) - Sqr(agent.Radius)) / (2 * radius * neighbor.Distance));
+                    nav.MoveBlock.AddAngle(targetAngle, 90 + a*Mathf.Rad2Deg);
+                }
+                else
+                {
+                    //计算当前可能发生碰撞的移动方向范围
+                    float offsetAngle = Mathf.Asin((radius + agent.Radius + agent.MoveDistance) / neighbor.Distance) * Mathf.Rad2Deg;
+                    nav.MoveBlock.AddAngle(targetAngle, offsetAngle);
+                }
+            }
+        }
+
+        //移动时和其它角色碰撞方向调整,用于按照方向直线移动过程中避让其它角色
+        //返回true，则代表进行过方向的调整
+        public static bool AdjustMoveByNeighbor(this SDFNavContext nav, ref MoveAgentInfo agent)
+        {
+            nav.MoveBlock.Clear();
+            foreach (var neighbor in nav.Neighbors)
+            {
+                if (neighbor.Distance <= Epsilon)
+                    continue;//几乎重叠就允许移动直接忽略
+                if (neighbor.Distance > agent.Radius + agent.MoveDistance + neighbor.Radius)
+                    continue;//不会与其发生碰撞
+                if (Mathf.Abs(agent.Radius - neighbor.Radius) > neighbor.Distance)
+                    continue;//如果一个在另一个的内部，就让其走出去
+                float targetAngle = Angle360(agent.Direction, neighbor.Direction);
+                if (neighbor.Distance <= agent.Radius + neighbor.Radius)
+                {
+                    nav.MoveBlock.AddAngle(targetAngle, 90);
+                    continue;
+                }
+                float offsetAngle = Mathf.Asin((agent.Radius + neighbor.Radius) / neighbor.Distance) * Mathf.Rad2Deg;
+                nav.MoveBlock.AddAngle(targetAngle, offsetAngle);
+            }
+            float adjustAngle = nav.MoveBlock.GetMinOffsetAngle();
+            if (Mathf.Abs(adjustAngle) <= Epsilon || adjustAngle < -90 && adjustAngle > 90)
+                return false;
+            agent.Direction = Rotate(agent.Direction, adjustAngle);
+            return true;
+        }
+
+        //贴墙移动处理
+        //如果移动路线和撞到障碍物，则调整移动方向和移动距离，让其贴着墙滑动
+        //返回true，则代表进行过方向和距离的调整
+        public static bool AdjustMoveByObstacle(this SDFNavContext nav, ref MoveAgentInfo agentInfo)
+        {
+            Vector2 newPos = agentInfo.Position + agentInfo.Direction * agentInfo.MoveDistance;
+            float sd = nav.SDFMap.Sample(newPos);
+            if (sd >= (agentInfo.Radius + Epsilon))
+                return false;
+            var gradient = nav.SDFMap.Gradiend(newPos).normalized;
+            newPos = newPos + (agentInfo.Radius - sd + 0.001f) * gradient;
+            Vector2 diff = newPos - agentInfo.Position;
+            //如果夹角大于等于90度，则不处理，让它撞墙
+            if (Vector2.Dot(diff, agentInfo.Direction) <= Epsilon)
+                return false;
+            float magnitude = diff.magnitude;
+            if (magnitude <= Epsilon)
+                return false;//退回到当前位置也不处理
+            agentInfo.Direction = diff / magnitude;
+            if (magnitude <= agentInfo.MoveDistance)
+                agentInfo.MoveDistance = magnitude;
+            return true;
+        }
+
+        public static float ColliderMoveByObstacle(this SDFNavContext nav, in MoveAgentInfo agent)
+        {
+            if (agent.MoveDistance >= agent.Radius || nav.SDFMap.Sample(agent.Position) < (agent.Radius + agent.MoveDistance))
+                return nav.SDFMap.TryMoveTo(agent.Position, agent.Direction, agent.Radius, agent.MoveDistance);
+            return agent.MoveDistance;
+        }
+
+        public static float ColliderMoveByNeighbor(this SDFNavContext nav, in MoveAgentInfo agent)
+        {
+            float distance = agent.MoveDistance;
+            foreach (var neighbor in nav.Neighbors)
+            {
+                float dot = Vector2.Dot(neighbor.Direction, agent.Direction);
+                dot = Mathf.Clamp(dot, -1, 1);
+                if (dot <= Epsilon)
+                    continue;//目标在自己侧后方不处理
+                if (neighbor.Distance < neighbor.Radius + agent.Radius)
+                    return 0;//已经产生碰撞就不移动了
+                //自己中心点A，目标中心点B，B投影到自己移动路径上的点C，组成直角三角形，斜边为AB
+                float ac = dot * neighbor.Distance;//AC的长度
+                float sqrbc = Sqr(neighbor.Distance) - Sqr(ac);//BC的长度
+                float sqrToRadius = Sqr(agent.Radius + neighbor.Radius);
+                if (sqrbc >= sqrToRadius)
+                    continue;//BC的距离大于两者半径之和说明移动过程中不会产生碰撞
+                             //此时把A设为碰撞是自己中心点的位置，BC不变AB则是两者半径之和,
+                float newac = Mathf.Sqrt(sqrToRadius - sqrbc);
+                float collisionDistance = ac - newac;//产生碰撞时移动的距离
+                if (collisionDistance < distance)
+                    distance = collisionDistance;
+            }
+            return distance;
+        }
+
+        public static bool MoveTest(this SDFNavContext nav, Vector2 direction, float radius, float maxDistance)
+        {
+            foreach (var neighbor in nav.Neighbors)
+            {
+                float dot = Vector2.Dot(neighbor.Direction, direction);
+                dot = Mathf.Clamp(dot, -1, 1);
+                if (dot <= Epsilon)
+                    continue;//目标在自己侧后方不处理
+                if (neighbor.Distance < neighbor.Radius + radius)
+                    return false;//已经产生碰撞就不移动了
+                             //自己中心点A，目标中心点B，B投影到自己移动路径上的点C，组成直角三角形，斜边为AB
+                float ac = dot * neighbor.Distance;//AC的长度
+                float bc = Mathf.Sqrt(Sqr(neighbor.Distance) - Sqr(ac));//BC的长度
+                if (bc >= (radius + neighbor.Radius))
+                    continue;//BC的距离大于两者半径之和说明移动过程中不会产生碰撞
+                             //此时把A设为碰撞是自己中心点的位置，BC不变AB则是两者半径之和,
+                float newac = Mathf.Sqrt(Sqr(radius + neighbor.Radius) - Sqr(bc));
+                float collisionDistance = ac - newac;//产生碰撞时移动的距离
+                if (collisionDistance < maxDistance)
+                    return false;
+            }
+            return true;
+        }
+        public static Vector2 Rotate(Vector2 v, float degree)
+        {
+            degree *= -Mathf.Deg2Rad;
+            var ca = Mathf.Cos(degree);
+            var sa = Mathf.Sin(degree);
+            return new Vector2(ca * v.x - sa * v.y, sa * v.x + ca * v.y);
+        }
+
+        public static float Cross(Vector2 lhs, Vector2 rhs)
+        {
+            return lhs.x * rhs.y - lhs.y * rhs.x;
+        }
+
+        //顺时针方向，-180 <-> 180
+        public static float Angle360(Vector2 from, Vector2 to)
+        {
+            float dAngle = Mathf.Acos(Mathf.Clamp(Vector2.Dot(from.normalized, to.normalized), -1f, 1f)) * Mathf.Rad2Deg;
+            if (Cross(from, to) > 0)
+            {
+                dAngle = -dAngle;
+            }
+            return dAngle;
+        }
+
+        public static float Sqr(float v)
+        {
+            return v * v;
+        }
+
+    }
+}

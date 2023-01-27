@@ -42,7 +42,7 @@ public class OperatePanel
                                 SelectAgents.Add(newId);
                         	    break;
                             case Mode.MoveAgent:
-                                foreach (var agent in Manager.Move.Agents)
+                                foreach (var agent in Manager.Agents)
                                 {
                                     if (SelectAgents.Contains(agent.ID))
                                     {
@@ -76,7 +76,7 @@ public class OperatePanel
         using(var scroll = new GUILayout.ScrollViewScope(scrollPos))
         {
             scrollPos = scroll.scrollPosition;
-            foreach (var agent in Manager.Move.Agents)
+            foreach (var agent in Manager.Agents)
             {
                 using (new GUILayout.HorizontalScope())
                 {
@@ -102,7 +102,7 @@ public class OperatePanel
         {
             if (GUILayout.Button("全选"))
             {
-                foreach (var agent in Manager.Move.Agents)
+                foreach (var agent in Manager.Agents)
                 {
                     SelectAgents.Add(agent.ID);
                 }
@@ -124,18 +124,18 @@ public class OperatePanel
 
     public void OnGizmos()
     {
-        if (Manager == null || Manager.Move == null)
+        if (Manager == null)
             return;
         Color color = Gizmos.color;
         Gizmos.color = Color.red;
-        foreach (var agent in Manager.Move.Agents)
+        foreach (var agent in Manager.Agents)
         {
-            if (agent.Type == MoveType.Path && agent.Path.Count > 0)
+            if (agent.Type == MoveType.Path && agent.NavPath.Path.Count > 0)
             {
                 Vector2 pos = agent.Position;
-                for (int i = agent.Path.Count - 1; i>=0; --i)
+                for (int i = agent.NavPath.Path.Count - 1; i>=0; --i)
                 {
-                    var pt = agent.Path[i];
+                    var pt = agent.NavPath.Path[i];
                     Gizmos.DrawLine(new Vector3(pos.x, 0.5f, pos.y), new Vector3(pt.x, 0.5f, pt.y));
                     pos = pt;
                 }
