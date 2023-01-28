@@ -110,6 +110,8 @@ namespace SDFNav
                 BuildMoveDirectionRange(nav, agent, 0);
                 float adjustAngle = 0;
                 float cross = Cross(path.LastMoveDirection, direction);
+                //优先选择向目标方向偏移
+                //TODO：暂时还是绕不过去凹的比较深的障碍物
                 if (cross > 0)
                 {
                     adjustAngle = nav.MoveBlock.GetLeftMinAngle(1);
