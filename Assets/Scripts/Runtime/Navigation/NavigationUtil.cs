@@ -48,8 +48,7 @@ namespace SDFNav
             //仅剩下最后一个路点时
             if (path.Path.Count == 1)
             {
-                //处理是否达到下一个终点
-                Vector2 nextPoint = path.Path[^1];
+                Vector2 nextPoint = path.Path[0];
                 float distance = Vector2.Distance(nextPoint, agent.Position);
                 if (distance < agent.MoveDistance)
                 {
@@ -61,7 +60,7 @@ namespace SDFNav
                 {
                     var neighbor = nav.Neighbors[idx];
                     float space = neighbor.Distance - neighbor.Radius - agent.Radius;
-                    if (space < spaceToNeighbor)
+                    if (space > spaceToNeighbor)
                         return;//距离过远，还可以继续移动
                     path.RemoveLastPoint();
                 }
@@ -104,62 +103,70 @@ namespace SDFNav
             }
             direction /= distance;
             agent.Direction = direction;
-            bool usePathDir = true;
             nav.MoveBlock.Clear();
-            //if (path.HasAdjustDirection)//上一次的移动已经调整过角度，并不是按照目标点方向进行移动
-            //{
-            //    if (!MoveTest(nav, direction, agent.Radius, distance - agent.Radius))
-            //    {
-            //        //检查到目标点的路径上有其它的角色，如果有其它角色
-            //        //那么这次就不能按照目标方向为基准记性移动方向调整
-            //        //这样做的目的是为了让其绕过阻挡它的其它角色防止被卡在几个角色之间不停的往返移动
-            //        agent.Direction = path.LastMoveDirection;
-            //        var nearstNeighbor = nav.Neighbors[0];
-            //        if (nearstNeighbor.Distance > (nearstNeighbor.Radius + agent.Radius + spaceToNeighbor * 2))
-            //        {
-            //            float offsetAngle = Angle360(path.LastMoveDirection, direction);
-            //            agent.Direction = Rotate(path.LastMoveDirection, offsetAngle * 0.1f);
-            //        }
-            //        //BuildMoveDirectionRange(nav, agent, spaceToNeighbor);
-            //
-            //        usePathDir = false;
-            //    }
-            //    else
-            //    {
-            //        path.HasAdjustDirection = false;
-            //    }
-            //}
-            BuildMoveDirectionRange(nav, agent, spaceToNeighbor);
-            float adjustAngle = nav.MoveBlock.GetMinOffsetAngle();
-            float absAngle = Mathf.Abs(adjustAngle);
-            if (usePathDir && (absAngle <= Epsilon || absAngle > 179))
-                return false;
-            path.HasAdjustDirection = true;
-            if (absAngle > Epsilon && absAngle < 179)
+            if (path.HasAdjustDirection)//上一次的移动已经调整过角度，并不是按照目标点方向进行移动
             {
+               agent.Direction = path.LastMoveDirection;
+                BuildMoveDirectionRange(nav, agent, 0);
+                float adjustAngle = 0;
+                float cross = Cross(path.LastMoveDirection, direction);
+                if (cross > 0)
+                {
+                    adjustAngle = nav.MoveBlock.GetLeftMinAngle(1);
+                    if (adjustAngle < -179)
+                        adjustAngle = nav.MoveBlock.GetRightMinAngle();
+                }
+                else
+                {
+                    adjustAngle = nav.MoveBlock.GetRightMinAngle(1);
+                    if (adjustAngle >179)
+                        adjustAngle = nav.MoveBlock.GetLeftMinAngle();
+                }
+                float absAngle = Mathf.Abs(adjustAngle);
+                if (absAngle <= Epsilon || absAngle > 179)
+                    return false;
                 agent.Direction = Rotate(agent.Direction, adjustAngle);
+                path.LastMoveDirection = agent.Direction;
             }
-            path.LastMoveDirection = agent.Direction;
+            else
+            {
+                BuildMoveDirectionRange(nav, agent, 0);
+                float adjustAngle = nav.MoveBlock.GetMinOffsetAngle();
+                float absAngle = Mathf.Abs(adjustAngle);
+                if (absAngle <= Epsilon || absAngle > 179)
+                    return false;
+                path.HasAdjustDirection = true;
+                agent.Direction = Rotate(agent.Direction, adjustAngle);
+                path.LastMoveDirection = agent.Direction;
+
+            }
             return true;
         }
 
         private static void BuildMoveDirectionRange(this SDFNavContext nav, in MoveAgentInfo agent, float spaceToNeighbor)
         {
+            float sd = nav.SDFMap.Sample(agent.Position);
+            if (sd < agent.Radius + agent.MoveDistance)
+            {
+                var gradiend = nav.SDFMap.Gradiend(agent.Position).normalized;
+                float targetAngle = Angle360(agent.Direction, -gradiend);
+                nav.MoveBlock.AddAngle(targetAngle, 90);
+            }
             foreach (var neighbor in nav.Neighbors)
             {
                 if (neighbor.Distance <= Epsilon)
                     continue;//中心重叠
                 if (Mathf.Abs(agent.Radius - neighbor.Radius) > neighbor.Distance)
                     continue;//完全在另外一个的内部
-                float radius = neighbor.MoveDistance + spaceToNeighbor +neighbor.Radius;
+                float radius = neighbor.MoveDistance + spaceToNeighbor + neighbor.Radius;
                 if (agent.Radius + agent.MoveDistance + radius < neighbor.Distance)
                     continue;//不会发生碰撞
                 float targetAngle = Angle360(agent.Direction, neighbor.Direction);
-                if (neighbor.Distance <= agent.Radius + radius)
+                if (neighbor.Distance <= radius + agent.Radius + agent.MoveDistance)
                 {
                     //说明会发生碰撞，直接屏蔽90 + 目标中心到两圆交点 与两个圆心连线的夹角
-                    float a = Mathf.Acos((Sqr(radius) + Sqr(neighbor.Distance) - Sqr(agent.Radius)) / (2 * radius * neighbor.Distance));
-                    nav.MoveBlock.AddAngle(targetAngle, 90 + a*Mathf.Rad2Deg);
+                    //float a = Mathf.Acos((Sqr(radius) + Sqr(neighbor.Distance) - Sqr(agent.Radius)) / (2 * radius * neighbor.Distance));
+                    nav.MoveBlock.AddAngle(targetAngle, 90 /*+ a*Mathf.Rad2Deg*/);
                 }
                 else
                 {

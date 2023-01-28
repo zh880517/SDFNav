@@ -120,8 +120,8 @@ public class SampleManager : MonoBehaviour
             }
             if (info.MoveDistance > 0)
             {
-                info.MoveDistance = Context.ColliderMoveByObstacle(info);
                 info.MoveDistance = Context.ColliderMoveByNeighbor(info);
+                info.MoveDistance = Context.ColliderMoveByObstacle(info);
                 agent.Position += info.Direction * info.MoveDistance;
                 agent.MoveDir = info.Direction;
             }

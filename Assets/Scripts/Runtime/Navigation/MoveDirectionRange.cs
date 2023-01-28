@@ -21,24 +21,39 @@ namespace SDFNav
 
         public float GetMinOffsetAngle()
         {
-            float rightAngle = 0;
-            foreach (var range in RightRange)
-            {
-                if (range.Min > rightAngle)
-                    break;
-                rightAngle = range.Max;
-            }
-            float leftAngle = 0;
+            float rightAngle = GetRightMinAngle();
+            if (rightAngle == 0)
+                return rightAngle;
+            float leftAngle = GetLeftMinAngle();
+            if (leftAngle > rightAngle)
+                return rightAngle;
+            return -leftAngle;
+        }
+
+        public float GetLeftMinAngle(float start = 0)
+        {
+            float angle = start;
             foreach (var range in LeftRange)
             {
-                if (range.Max < leftAngle)
+                if (range.Min > angle)
                     break;
-                leftAngle = range.Min;
+                angle = range.Max + 1;
             }
-            if (-leftAngle > rightAngle)
-                return rightAngle;
-            return leftAngle;
+            return -angle;
         }
+
+        public float GetRightMinAngle(float start = 0)
+        {
+            float angle = start;
+            foreach (var range in RightRange)
+            {
+                if (range.Min > angle)
+                    break;
+                angle = range.Max + 1;
+            }
+            return angle;
+        }
+
 
         public void AddAngle(float angle, float offset)
         {
@@ -46,59 +61,36 @@ namespace SDFNav
             float max = angle + offset;
             if (angle <= 0)
             {
-                AddToLeft(Mathf.Max(min, -180), Mathf.Min(max, 0));
+                AddToRange(-Mathf.Min(max, 0), -Mathf.Max(min, -180), LeftRange);
                 if (min < -180)
                 {
-                    AddToRight(360 + min, 180);
+                    AddToRange(360 + min, 180, RightRange);
                 }
                 if (max > 0)
                 {
-                    AddToRight(0, max);
+                    AddToRange(0, max, RightRange);
                 }
             }
             else
             {
-                AddToRight(Mathf.Max(min, 0), Mathf.Max(max, 180));
+                AddToRange(Mathf.Max(min, 0), Mathf.Max(max, 180), RightRange);
                 if (min < 0)
                 {
-                    AddToLeft(min, 0);
+                    AddToRange(0, min, LeftRange);
                 }
                 if (max > 180)
                 {
-                    AddToLeft(-180, max - 360);
+                    AddToRange(360 - max, 180, LeftRange);
                 }
             }
         }
 
-        private void AddToLeft(float min, float max)
+        private void AddToRange(float min, float max, List<Range> ranges)
         {
             int insertIdx = 0;
-            for (int i = 0; i < LeftRange.Count; ++i)
+            for (int i = 0; i < ranges.Count; ++i)
             {
-                var r = LeftRange[i];
-                if (r.Max < min)
-                {
-                    insertIdx = i;
-                    break;
-                }
-                if (max < r.Min)
-                {
-                    insertIdx++;
-                    continue;
-                }
-                r.Min = Mathf.Min(min, r.Min);
-                r.Max = Mathf.Max(max, r.Max);
-                LeftRange[i] = r;
-                return;
-            }
-            LeftRange.Insert(insertIdx, new Range { Min = min, Max = max });
-        }
-        private void AddToRight(float min, float max)
-        {
-            int insertIdx = 0;
-            for (int i = 0; i < RightRange.Count; ++i)
-            {
-                var r = RightRange[i];
+                var r = ranges[i];
                 if (r.Min > max)
                 {
                     insertIdx = i;
@@ -111,11 +103,10 @@ namespace SDFNav
                 }
                 r.Min = Mathf.Min(min, r.Min);
                 r.Max = Mathf.Max(max, r.Max);
-                RightRange[i] = r;
+                ranges[i] = r;
                 return;
             }
-            RightRange.Insert(insertIdx, new Range { Min = min, Max = max });
+            ranges.Insert(insertIdx, new Range { Min = min, Max = max });
         }
-
     }
 }
