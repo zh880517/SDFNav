@@ -8,6 +8,7 @@ namespace SDFNav
         public List<Vector2> Path = new List<Vector2>();//反向路径
         public Vector2 LastMoveDirection;//上一次的移动方向
         public bool HasAdjustDirection;//上一次已经调整过移动方向
+        public float LastAdjustAngle;
 
         public bool HasFinished=>Path.Count == 0;
 
@@ -25,6 +26,7 @@ namespace SDFNav
             Path.Clear();
             LastMoveDirection = Vector2.zero;
             HasAdjustDirection = false;
+            LastAdjustAngle = 0;
         }
     }
 }

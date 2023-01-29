@@ -104,48 +104,32 @@ namespace SDFNav
             direction /= distance;
             agent.Direction = direction;
             nav.MoveBlock.Clear();
-            if (path.HasAdjustDirection)//上一次的移动已经调整过角度，并不是按照目标点方向进行移动
+            Vector2 lastDir = path.LastAdjustAngle != 0 ? path.LastMoveDirection : direction;
+            BuildMoveDirectionRange(nav, agent, lastDir, 0);
+            float leftAngle = nav.MoveBlock.GetLeftMinAngle();
+            float rightAngle = nav.MoveBlock.GetRightMinAngle();
+            bool useRight = rightAngle < 179;
+            float adjustAngle = rightAngle;
+            if (useRight)
             {
-               agent.Direction = path.LastMoveDirection;
-                BuildMoveDirectionRange(nav, agent, 0);
-                float adjustAngle = 0;
-                float cross = Cross(path.LastMoveDirection, direction);
-                //优先选择向目标方向偏移
-                //TODO：暂时还是绕不过去凹的比较深的障碍物
-                if (cross > 0)
+                if (Mathf.Abs(path.LastAdjustAngle + leftAngle) < Mathf.Abs(path.LastAdjustAngle - rightAngle))
                 {
-                    adjustAngle = nav.MoveBlock.GetLeftMinAngle(1);
-                    if (adjustAngle < -179)
-                        adjustAngle = nav.MoveBlock.GetRightMinAngle();
+                    useRight = false;
                 }
-                else
-                {
-                    adjustAngle = nav.MoveBlock.GetRightMinAngle(1);
-                    if (adjustAngle >179)
-                        adjustAngle = nav.MoveBlock.GetLeftMinAngle();
-                }
-                float absAngle = Mathf.Abs(adjustAngle);
-                if (absAngle <= Epsilon || absAngle > 179)
-                    return false;
-                agent.Direction = Rotate(agent.Direction, adjustAngle);
-                path.LastMoveDirection = agent.Direction;
             }
-            else
-            {
-                BuildMoveDirectionRange(nav, agent, 0);
-                float adjustAngle = nav.MoveBlock.GetMinOffsetAngle();
-                float absAngle = Mathf.Abs(adjustAngle);
-                if (absAngle <= Epsilon || absAngle > 179)
-                    return false;
-                path.HasAdjustDirection = true;
-                agent.Direction = Rotate(agent.Direction, adjustAngle);
-                path.LastMoveDirection = agent.Direction;
-
-            }
+            if (!useRight)
+                adjustAngle = -leftAngle;
+            float absAngle = Mathf.Abs(adjustAngle);
+            if (absAngle <= Epsilon || absAngle > 179)
+                return false;
+            path.LastAdjustAngle = adjustAngle;
+            path.HasAdjustDirection = true;
+            agent.Direction = Rotate(agent.Direction, adjustAngle);
+            path.LastMoveDirection = agent.Direction;
             return true;
         }
 
-        private static void BuildMoveDirectionRange(this SDFNavContext nav, in MoveAgentInfo agent, float spaceToNeighbor)
+        private static void BuildMoveDirectionRange(this SDFNavContext nav, in MoveAgentInfo agent, Vector2 lastDir, float spaceToNeighbor)
         {
             float sd = nav.SDFMap.Sample(agent.Position);
             if (sd < agent.Radius + agent.MoveDistance)
@@ -160,20 +144,25 @@ namespace SDFNav
                     continue;//中心重叠
                 if (Mathf.Abs(agent.Radius - neighbor.Radius) > neighbor.Distance)
                     continue;//完全在另外一个的内部
-                float radius = neighbor.MoveDistance + spaceToNeighbor + neighbor.Radius;
-                if (agent.Radius + agent.MoveDistance + radius < neighbor.Distance)
+                bool isFront = Vector2.Dot(agent.Direction, neighbor.Direction) > Epsilon;
+                if (!isFront)
+                {
+                    isFront = Vector2.Dot(lastDir, neighbor.Direction) > Epsilon;
+                }
+                //将自己的半径加到目标的半径上，这样方便计算
+                float radius = neighbor.Radius + agent.Radius;
+                float moveDistance = neighbor.MoveDistance + agent.MoveDistance;
+                if (!isFront && spaceToNeighbor + moveDistance + radius < neighbor.Distance)
                     continue;//不会发生碰撞
                 float targetAngle = Angle360(agent.Direction, neighbor.Direction);
-                if (neighbor.Distance <= radius + agent.Radius + agent.MoveDistance)
+                if (neighbor.Distance <= spaceToNeighbor + moveDistance + radius)
                 {
-                    //说明会发生碰撞，直接屏蔽90 + 目标中心到两圆交点 与两个圆心连线的夹角
-                    //float a = Mathf.Acos((Sqr(radius) + Sqr(neighbor.Distance) - Sqr(agent.Radius)) / (2 * radius * neighbor.Distance));
-                    nav.MoveBlock.AddAngle(targetAngle, 90 /*+ a*Mathf.Rad2Deg*/);
+                    nav.MoveBlock.AddAngle(targetAngle, 95);
                 }
                 else
                 {
                     //计算当前可能发生碰撞的移动方向范围
-                    float offsetAngle = Mathf.Asin((radius + agent.Radius + agent.MoveDistance) / neighbor.Distance) * Mathf.Rad2Deg;
+                    float offsetAngle = Mathf.Asin((spaceToNeighbor + moveDistance + radius) / neighbor.Distance) * Mathf.Rad2Deg;
                     nav.MoveBlock.AddAngle(targetAngle, offsetAngle);
                 }
             }
@@ -234,7 +223,7 @@ namespace SDFNav
 
         public static float ColliderMoveByObstacle(this SDFNavContext nav, in MoveAgentInfo agent)
         {
-            if (agent.MoveDistance >= agent.Radius || nav.SDFMap.Sample(agent.Position) < (agent.Radius + agent.MoveDistance))
+            if (nav.SDFMap.Sample(agent.Position) < (agent.Radius + agent.MoveDistance))
                 return nav.SDFMap.TryMoveTo(agent.Position, agent.Direction, agent.Radius, agent.MoveDistance);
             return agent.MoveDistance;
         }

@@ -30,26 +30,26 @@ namespace SDFNav
             return -leftAngle;
         }
 
-        public float GetLeftMinAngle(float start = 0)
+        public float GetLeftMinAngle()
         {
-            float angle = start;
+            float angle = 0;
             foreach (var range in LeftRange)
             {
                 if (range.Min > angle)
                     break;
-                angle = range.Max + 1;
+                angle = range.Max + 5;
             }
-            return -angle;
+            return angle;
         }
 
-        public float GetRightMinAngle(float start = 0)
+        public float GetRightMinAngle()
         {
-            float angle = start;
+            float angle = 0;
             foreach (var range in RightRange)
             {
                 if (range.Min > angle)
                     break;
-                angle = range.Max + 1;
+                angle = range.Max + 5;
             }
             return angle;
         }
@@ -59,29 +59,28 @@ namespace SDFNav
         {
             float min = angle - offset;
             float max = angle + offset;
-            if (angle <= 0)
+            if (min < -180)
             {
-                AddToRange(-Mathf.Min(max, 0), -Mathf.Max(min, -180), LeftRange);
-                if (min < -180)
-                {
-                    AddToRange(360 + min, 180, RightRange);
-                }
-                if (max > 0)
-                {
-                    AddToRange(0, max, RightRange);
-                }
+                AddToRange(360 + min, 180, RightRange);
+                min = -180;
+            }
+            if (max > 180)
+            {
+                AddToRange(360 - max, 180, LeftRange);
+                max = 180;
+            }
+            if (min >= 0)
+            {
+                AddToRange(min, max, RightRange);
+            }
+            else if (max <= 0)
+            {
+                AddToRange(-max, -min, RightRange);
             }
             else
             {
-                AddToRange(Mathf.Max(min, 0), Mathf.Max(max, 180), RightRange);
-                if (min < 0)
-                {
-                    AddToRange(0, min, LeftRange);
-                }
-                if (max > 180)
-                {
-                    AddToRange(360 - max, 180, LeftRange);
-                }
+                AddToRange(0, -min, LeftRange);
+                AddToRange(0, max, RightRange);
             }
         }
 
