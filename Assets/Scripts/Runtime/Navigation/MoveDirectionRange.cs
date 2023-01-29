@@ -75,7 +75,7 @@ namespace SDFNav
             }
             else if (max <= 0)
             {
-                AddToRange(-max, -min, RightRange);
+                AddToRange(-max, -min, LeftRange);
             }
             else
             {
