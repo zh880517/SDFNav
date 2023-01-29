@@ -12,7 +12,7 @@ namespace SDFNav.Editor
     public static class SDFExportUtil
     {
 
-        public static SDFData EdgeToSDF(EdgeData edgeData, float grain = 0.25f)
+        public static SDFData EdgeToSDF(EdgeData edgeData, float grain = 0.5f)
         {
             var rect = EdgeEditorUtil.CalcBounds(edgeData, 1);
             Vector2 size = rect.size / grain;

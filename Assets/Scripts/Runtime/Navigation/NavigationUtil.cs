@@ -105,12 +105,17 @@ namespace SDFNav
             agent.Direction = direction;
             nav.MoveBlock.Clear();
             Vector2 lastDir = path.LastAdjustAngle != 0 ? path.LastMoveDirection : direction;
+
+            /* TODO:
+             * 1、计算移动方向的时候加入目标移动方向处理，如果目标在移动，并且不在自己的移动路径上
+             * 2、如果目标点有别的角色，并且自己朝着目标点移动不会撞到其它的角色，则只加入障碍物处理
+             */
             BuildMoveDirectionRange(nav, agent, lastDir, 0);
             float leftAngle = nav.MoveBlock.GetLeftMinAngle();
             float rightAngle = nav.MoveBlock.GetRightMinAngle();
             bool useRight = rightAngle < 179;
             float adjustAngle = rightAngle;
-            if (useRight)
+            if (useRight && leftAngle < 179)
             {
                 if (Mathf.Abs(path.LastAdjustAngle + leftAngle) < Mathf.Abs(path.LastAdjustAngle - rightAngle))
                 {
