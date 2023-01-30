@@ -64,7 +64,13 @@ namespace SDFNav
                 return 0;
             float t = 0;
             if (radius > sd)
+            {
+                //如果已经撞，当移动方向和梯度方向接近时，可以判定为远离障碍物，则允许它移动出去
+                Vector2 gradiend = Gradiend(data, origin).normalized;
+                if (Vector2.Dot(dir, gradiend) < 0.9f)
+                    return 0;
                 radius = sd;
+            }
             while (true)
             {
                 Vector2 p = origin + dir * (t + 0.001f);

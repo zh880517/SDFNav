@@ -620,6 +620,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   AgentPrefab: {fileID: 475949122836504686, guid: 27aef8145cd323e4c83530aa8251c062, type: 3}
   SDFAsset: {fileID: 4900000, guid: 518f077880200424dbb4a817d435048b, type: 3}
+  AgentRadius: 2
+  Speed: 5
+  CloseDistance: 0.5
 --- !u!4 &644202598
 Transform:
   m_ObjectHideFlags: 0
