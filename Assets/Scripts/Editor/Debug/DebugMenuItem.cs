@@ -20,6 +20,7 @@ namespace SDFNav.Editor
             DebugDrawWindow.DrawSDF(sdfData);
             using(FileStream file = new FileStream("Assets/ExportData/SDF.bytes", FileMode.OpenOrCreate))
             {
+                file.SetLength(0);
                 using(BinaryWriter writer = new BinaryWriter(file))
                 {
                     sdfData.Write(writer);
