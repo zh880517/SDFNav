@@ -18,7 +18,7 @@ namespace SDFNav.Editor
 
             var sdfData = SDFExportUtil.EdgeToSDF(edge);
             DebugDrawWindow.DrawSDF(sdfData);
-            using(FileStream file = new FileStream("Assets/ExportData/SDF.bytes", FileMode.OpenOrCreate))
+            using(FileStream file = new FileStream("Assets/ExportData/SDF.bytes", FileMode.Create))
             {
                 file.SetLength(0);
                 using(BinaryWriter writer = new BinaryWriter(file))
