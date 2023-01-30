@@ -7,6 +7,7 @@ namespace SDFNav
         public Vector2 Direction;//相对自己的方向
         public float Radius;
         public float Distance;//圆心距离
+        public Vector2 MoveDirection;//移动方向
         public float MoveDistance;
     }
 }

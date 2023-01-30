@@ -98,11 +98,30 @@ namespace SDFNav
                 //路径点已经处理过，理论上不会出现这种情况
                 path.RemoveLastPoint();
                 path.LastMoveDirection = Vector2.zero;
-                path.HasAdjustDirection = false;
+                path.LastAdjustAngle = 0;
                 return AdjustMoveByPathMove(nav, ref agent, path, spaceToNeighbor);
             }
             direction /= distance;
             agent.Direction = direction;
+            if (path.Path.Count == 1)
+            {
+                //前往最后一个目标点的时候，如果可以直接移动过去，或者阻挡自己的角色已经占了目标位置，则直接移动过去，不做调整
+                int idx = MoveTest(nav, direction, agent.Radius, distance);
+                do
+                {
+                    if (idx >= 0)
+                    {
+                        var blockNeighbor = nav.Neighbors[idx];
+                        Vector2 targetPos = agent.Position + blockNeighbor.Direction * blockNeighbor.Distance;
+                        float sqrMagnitude = (targetPos - targetPoint).sqrMagnitude;
+                        if (sqrMagnitude > Sqr(blockNeighbor.Radius))
+                            break;
+                    }
+                    path.LastMoveDirection = direction;
+                    path.LastAdjustAngle = 0;
+                    return false;
+                } while (false);
+            }
             nav.MoveBlock.Clear();
             Vector2 lastDir = path.LastAdjustAngle != 0 ? path.LastMoveDirection : direction;
 
@@ -128,7 +147,6 @@ namespace SDFNav
             if (absAngle <= Epsilon || absAngle > 179)
                 return false;
             path.LastAdjustAngle = adjustAngle;
-            path.HasAdjustDirection = true;
             agent.Direction = Rotate(agent.Direction, adjustAngle);
             path.LastMoveDirection = agent.Direction;
             return true;
@@ -166,6 +184,12 @@ namespace SDFNav
                 }
                 else
                 {
+                    //如果角色时超远离自己的方向移动，则忽略该角色
+                    bool isMoving = neighbor.MoveDistance > Epsilon && neighbor.MoveDirection.sqrMagnitude > Epsilon;
+                    if (isMoving && Vector2.Dot(neighbor.Direction, neighbor.MoveDirection) > Epsilon)
+                    {
+                        continue;
+                    }
                     //计算当前可能发生碰撞的移动方向范围
                     float offsetAngle = Mathf.Asin((spaceToNeighbor + moveDistance + radius) / neighbor.Distance) * Mathf.Rad2Deg;
                     nav.MoveBlock.AddAngle(targetAngle, offsetAngle);
@@ -259,28 +283,31 @@ namespace SDFNav
             return distance;
         }
 
-        public static bool MoveTest(this SDFNavContext nav, Vector2 direction, float radius, float maxDistance)
+        //返回移动到目标点碰撞到的角色索引
+        public static int MoveTest(this SDFNavContext nav, Vector2 direction, float radius, float maxDistance)
         {
-            foreach (var neighbor in nav.Neighbors)
+            for (int i=0; i<nav.Neighbors.Count; ++i)
             {
+                var neighbor = nav.Neighbors[i];
                 float dot = Vector2.Dot(neighbor.Direction, direction);
                 dot = Mathf.Clamp(dot, -1, 1);
                 if (dot <= Epsilon)
                     continue;//目标在自己侧后方不处理
                 if (neighbor.Distance < neighbor.Radius + radius)
-                    return false;//已经产生碰撞就不移动了
-                             //自己中心点A，目标中心点B，B投影到自己移动路径上的点C，组成直角三角形，斜边为AB
+                    return i;//已经产生碰撞
+                //自己中心点A，目标中心点B，B投影到自己移动路径上的点C，组成直角三角形，斜边为AB
                 float ac = dot * neighbor.Distance;//AC的长度
                 float bc = Mathf.Sqrt(Sqr(neighbor.Distance) - Sqr(ac));//BC的长度
                 if (bc >= (radius + neighbor.Radius))
-                    continue;//BC的距离大于两者半径之和说明移动过程中不会产生碰撞
-                             //此时把A设为碰撞是自己中心点的位置，BC不变AB则是两者半径之和,
+                    continue;
+                //BC的距离大于两者半径之和说明移动过程中不会产生碰撞
+                //此时把A设为碰撞是自己中心点的位置，BC不变AB则是两者半径之和,
                 float newac = Mathf.Sqrt(Sqr(radius + neighbor.Radius) - Sqr(bc));
                 float collisionDistance = ac - newac;//产生碰撞时移动的距离
                 if (collisionDistance < maxDistance)
-                    return false;
+                    return i;
             }
-            return true;
+            return -1;
         }
         public static Vector2 Rotate(Vector2 v, float degree)
         {

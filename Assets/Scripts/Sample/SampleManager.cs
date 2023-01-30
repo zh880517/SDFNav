@@ -87,6 +87,7 @@ public class SampleManager : MonoBehaviour
     {
         foreach (var agent in Agents)
         {
+            agent.MoveDir = Vector2.zero;
             if (agent.Type == MoveType.None)
                 continue;
             MoveAgentInfo info = new MoveAgentInfo
@@ -110,7 +111,7 @@ public class SampleManager : MonoBehaviour
                 {
                     Vector2 nextPoint = agent.NavPath.Path[^1];
                     float selectRange = CloseDistance;
-                    if (agent.NavPath.HasAdjustDirection)
+                    if (agent.NavPath.LastAdjustAngle != 0)
                         selectRange = Mathf.Max(selectRange, Vector2.Distance(nextPoint, info.Position) - info.Radius);
 
                     SelectNeighbor(agent, selectRange, dt, Context.Neighbors);
@@ -153,7 +154,8 @@ public class SampleManager : MonoBehaviour
                 Direction = offset,
                 Radius = target.Radius,
                 Distance = magnitude,
-                MoveDistance = target.Speed * dt,
+                MoveDistance = target.Type != MoveType.None ? target.Speed * dt : 0,
+                MoveDirection = target.MoveDir,
             };
             int insertIdx = neighbors.Count;
             for (int i = 0; i < neighbors.Count; ++i)
