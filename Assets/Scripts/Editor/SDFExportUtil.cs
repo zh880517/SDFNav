@@ -21,9 +21,8 @@ namespace SDFNav.Editor
             Vector2 min = rect.min;
             int width = Mathf.CeilToInt(size.x);
             int height = Mathf.CeilToInt(size.y);
-            float maxDistance = Mathf.Max(size.x, size.y);
-            float scale = maxDistance / short.MaxValue;
-            short[] data = new short[width * height];
+            float[] originalData = new float[width * height];
+            float sdAbsMax = float.MinValue;
             for (int i = 0; i < width; ++i)
             {
                 UnityEditor.EditorUtility.DisplayProgressBar("生成", $"生成SDF 行 {i + 1}", i/(float)width);
@@ -31,10 +30,18 @@ namespace SDFNav.Editor
                 {
                     Vector2 pos = min + new Vector2(i * grain, j * grain);
                     var result = EdgeEditorUtil.SDF(pos, edgeData);
-                    float val = (result.SDF / maxDistance) * short.MaxValue;
-                    data[i + width * j] = (short)val;
+                    float val = result.SDF;
+                    originalData[i + width * j] = val;
+                    sdAbsMax = Mathf.Max(Mathf.Abs(val), sdAbsMax);
                 }
             }
+            float scale = sdAbsMax / short.MaxValue;
+            short[] data = new short[originalData.Length];
+            for (int i=0; i<originalData.Length; ++i)
+            {
+                data[i] = (short)(originalData[i] / scale);
+            }
+            
             UnityEditor.EditorUtility.ClearProgressBar();
             SDFData sdfData = new SDFData();
             sdfData.Init(width, height, grain, scale, min, data);

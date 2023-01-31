@@ -3,7 +3,7 @@ using UnityEngine;
 namespace SDFNav
 {
     [System.Serializable]
-    public class SDFData
+    public class SDFData : ISDF
     {
         [SerializeField]
         private short[] data;

@@ -29,7 +29,7 @@ namespace SDFNav
             new GridLocation{ X = 1, Y = -1 },//BottomRight
         };
 
-        protected readonly SDFData SDF;
+        protected readonly ISDF SDF;
         private readonly BitArray closeMask;
         private readonly BitArray openMask;
         private readonly Queue<PathNode> nodePool = new Queue<PathNode>();
@@ -38,7 +38,7 @@ namespace SDFNav
         protected GridLocation endLocation;
         protected float moveRadius;
 
-        public PathFinder(SDFData sdf)
+        public PathFinder(ISDF sdf)
         {
             SDF = sdf;
             closeMask = new BitArray(sdf.Width * sdf.Height);

@@ -18,7 +18,32 @@ namespace SDFNav.Editor
 
             var sdfData = SDFExportUtil.EdgeToSDF(edge);
             DebugDrawWindow.DrawSDF(sdfData);
-            using(FileStream file = new FileStream("Assets/ExportData/SDF.bytes", FileMode.Create))
+            var root = GameObject.Find("ObstacleCollider");
+            if (root != null)
+            {
+                SDFScene scene = new SDFScene { Data = sdfData };
+                var boxs = root.GetComponentsInChildren<BoxCollider>();
+                foreach (var box in boxs)
+                {
+                    Vector3 center = box.transform.position;
+                    float rot = box.transform.rotation.eulerAngles.y;
+                    center += Quaternion.Euler(0, rot, 0) * box.center;
+                    var ob = DynamicObstacleExportUtil.BoxToDynamicObstacle(sdfData, 
+                        new Vector2(center.x, center.z), 
+                        new Vector2(box.size.x, box.size.z), rot);
+                    if (ob != null)
+                    {
+                        scene.Obstacles.Add(ob);
+                    }
+                }
+                var texture = ToTexture(scene);
+                var bytes = texture.EncodeToPNG();
+                string path = "Assets/sdfscene.png";
+                System.IO.File.WriteAllBytes(path, bytes);
+                AssetDatabase.ImportAsset(path);
+            }
+
+            using (FileStream file = new FileStream("Assets/ExportData/SDF.bytes", FileMode.Create))
             {
                 file.SetLength(0);
                 using(BinaryWriter writer = new BinaryWriter(file))
@@ -83,6 +108,34 @@ namespace SDFNav.Editor
             mesh.RecalculateNormals();
             MeshUtility.Optimize(mesh);
             return mesh;
+        }
+
+        public static Texture2D ToTexture(SDFScene scene)
+        {
+            SDFData sdf = scene.Data;
+            Texture2D texture = new Texture2D(sdf.Width, sdf.Height);
+            for (int i = 0; i < sdf.Width; ++i)
+            {
+                for (int j = 0; j < sdf.Height; ++j)
+                {
+                    short val = sdf[i, j];
+                    foreach (var ob  in scene.Obstacles)
+                    {
+                        val = ob.SDF(i, j, val);
+                    }
+                    float pencent = ((float)val) / short.MaxValue;
+                    if (val <= 0)
+                    {
+                        texture.SetPixel(i, j, new Color(1, 0, 0, -pencent));
+                    }
+                    else
+                    {
+                        texture.SetPixel(i, j, new Color(0, 1, 0, pencent));
+                    }
+                }
+            }
+            texture.Apply();
+            return texture;
         }
     }
 
