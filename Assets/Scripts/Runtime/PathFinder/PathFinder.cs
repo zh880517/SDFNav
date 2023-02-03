@@ -70,12 +70,28 @@ namespace SDFNav
             if (startNode != null && endNode != null && Search(startNode))
             {
                 var node = endNode;
+                GridLocation lastOffset = GridLocation.Empty;
+                int removeCount = 0;
                 while (node.parent != null)//最后一个是起点，所以不用加到队列里面
                 {
+                    GridLocation offset = new GridLocation
+                    {
+                        X = node.location.X - node.parent.location.X,
+                        Y = node.location.Y - node.parent.location.Y,
+                    };
                     Vector2 pos = new Vector2(node.location.X * SDF.Grain, node.location.Y * SDF.Grain) + SDF.Origin;
-                    reversePath.Add(pos);
+                    if (offset.X == lastOffset.X && offset.Y == lastOffset.Y)
+                    {
+                        reversePath[reversePath.Count - 1] = pos;
+                        ++removeCount;
+                    }
+                    else
+                        reversePath.Add(pos);
+
+                    lastOffset = offset;
                     node = node.parent;
                 }
+                //Debug.LogError($"路点 ：{reversePath.Count} : 优化数量 {removeCount}");
                 return true;
             }
             return false;
