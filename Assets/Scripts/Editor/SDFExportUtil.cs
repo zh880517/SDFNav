@@ -4,15 +4,14 @@ namespace SDFNav.Editor
 {
     public struct EdgeSDFResult
     {
-        public float SDF;
+        public float Distance;
         public SegmentIndice Segment;
-        public SegmentIndice ConnectSegement;//距离点相同的线段
         public Vector2 Point;
     }
     public static class SDFExportUtil
     {
 
-        public static SDFData EdgeToSDF(EdgeData edgeData, float grain = 0.5f)
+        public static SDFData EdgeToSDF(EdgeData edgeData, SubMeshData subMesh, float grain = 0.5f)
         {
             var rect = EdgeEditorUtil.CalcBounds(edgeData, 1);
             Vector2 size = rect.size / grain;
@@ -30,7 +29,15 @@ namespace SDFNav.Editor
                 {
                     Vector2 pos = min + new Vector2(i * grain, j * grain);
                     var result = EdgeEditorUtil.SDF(pos, edgeData);
-                    float val = result.SDF;
+                    float val = result.Distance;
+                    if (Mathf.Abs(val) < 1E-05f)
+                    {
+                        val = 0;
+                    }
+                    else if (!SDFNavEditorUtil.IsPointInSubMesh(pos, subMesh))
+                    {
+                        val = -val;
+                    }
                     originalData[i + width * j] = val;
                     sdAbsMax = Mathf.Max(Mathf.Abs(val), sdAbsMax);
                 }

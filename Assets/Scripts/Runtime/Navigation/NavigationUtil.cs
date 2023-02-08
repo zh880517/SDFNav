@@ -249,7 +249,52 @@ namespace SDFNav
                 agentInfo.MoveDistance = magnitude;
             return true;
         }
-
+        /*
+        public static Vector2 AdjustMoveByObstacle(this SDFNavContext scene, Vector2 pos, Vector2 nextPos, float radius)
+        {
+            float sd = scene.Sample(pos);
+            Vector2 direction = nextPos - pos;
+            float distance = direction.magnitude;
+            if (distance < Epsilon)
+                return nextPos;
+            direction /= distance;
+            if (sd <= radius)
+            {
+                //当前位置有问题
+                var currentGradiend = scene.Gradiend(pos).normalized;
+                Vector2 newPos = pos;
+                newPos += currentGradiend * (radius + radius - sd);
+                return newPos;
+            }
+            sd = scene.Sample(nextPos);
+            if (sd >= (radius + Epsilon))
+                return nextPos;
+            var gradient = scene.Gradiend(nextPos).normalized;
+            var adjustDir = direction - gradient * Vector2.Dot(gradient, direction);
+            adjustDir.Normalize();
+            nextPos = pos + adjustDir * distance;
+            for (int i = 0; i < 3; ++i)
+            {
+                sd = scene.Sample(nextPos);
+                if (sd >= radius)
+                    break;
+                gradient = scene.Gradiend(nextPos).normalized;
+                nextPos += gradient * (radius - sd);
+            }
+            //避免往返
+            if (Vector2.Dot(nextPos - pos, direction) < 0)
+            {
+                return pos;
+            }
+            Vector2 diff = nextPos - pos;
+            float magnitude = diff.magnitude;
+            if (magnitude > distance)
+            {
+                return pos + (diff / magnitude) * distance;
+            }
+            return nextPos;
+        }
+        */
         public static float ColliderMoveByObstacle(this SDFNavContext nav, in MoveAgentInfo agent)
         {
             if (nav.SDFMap.Sample(agent.Position) < (agent.Radius + agent.MoveDistance))

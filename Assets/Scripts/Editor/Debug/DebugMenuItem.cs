@@ -16,7 +16,7 @@ namespace SDFNav.Editor
             var edge = EdgeEditorUtil.SubMeshToEdgeByOffset(maxSubMesh);
             DebugDrawWindow.DrawEdge(edge);
 
-            var sdfData = SDFExportUtil.EdgeToSDF(edge);
+            var sdfData = SDFExportUtil.EdgeToSDF(edge, maxSubMesh);
             DebugDrawWindow.DrawSDF(sdfData);
             var root = GameObject.Find("ObstacleCollider");
             if (root != null)

@@ -26,7 +26,7 @@ namespace SDFNav.Editor
 
         public static void DrawSDFResult(EdgeSDFResult result, EdgeData edgeData)
         {
-            using (new Handles.DrawingScope(result.SDF < 0 ? Color.red : Color.blue))
+            using (new Handles.DrawingScope(result.Distance < 0 ? Color.red : Color.blue))
             {
                 Vector3 from = edgeData.Vertices[result.Segment.From].ToV3();
                 Vector3 to = edgeData.Vertices[result.Segment.To].ToV3();
@@ -34,12 +34,6 @@ namespace SDFNav.Editor
                 Handles.DrawLine(from, to);
                 Handles.DrawLine(result.Point.ToV3(), from);
                 Handles.DrawLine(result.Point.ToV3(), to);
-                if (!result.Segment.IsEquals(result.ConnectSegement))
-                {
-                    Vector3 from1 = edgeData.Vertices[result.ConnectSegement.From].ToV3();
-                    Vector3 to1 = edgeData.Vertices[result.ConnectSegement.To].ToV3();
-                    Handles.DrawLine(from1, to1);
-                }
             }
         }
 

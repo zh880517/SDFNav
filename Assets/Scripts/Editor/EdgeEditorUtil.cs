@@ -84,48 +84,18 @@ namespace SDFNav.Editor
                 if (Mathf.Abs(sqrM) < 0.0001f)
                 {
                     result.Segment = seg;
-                    result.SDF = 0;
+                    result.Distance = 0;
                     return result;
                 }
                 float diff = sqrM - sqrMagnitude;
-                if (Mathf.Abs(diff) < 0.0001f)
-                {
-                    result.ConnectSegement = seg;
-                    continue;
-                }
                 if (diff < 0)
                 {
                     result.Segment = seg;
-                    result.ConnectSegement = seg;
                     sqrMagnitude = sqrM;
                 }
             }
-            if (!result.Segment.IsEquals(result.ConnectSegement))
-            {
-                Vector2 a1 = edgeData.Vertices[result.Segment.From];
-                Vector2 b1 = edgeData.Vertices[result.Segment.To];
-                Vector2 a2 = edgeData.Vertices[result.ConnectSegement.From];
-                Vector2 b2 = edgeData.Vertices[result.ConnectSegement.To];
-                float side1 = SDFNavEditorUtil.PointOnSegmentSide(p, a1, b1);
-                float side2 = SDFNavEditorUtil.PointOnSegmentSide(p, a2, b2);
-                if (side1 != side2)
-                {
-                    result.SDF = -Mathf.Sqrt(sqrMagnitude);
-                    return result;
-                }
-            }
-            {
-                Vector2 from = edgeData.Vertices[result.Segment.From];
-                Vector2 to = edgeData.Vertices[result.Segment.To];
-                Vector2 ap = p - from;
-                Vector2 ab = to - from;
-                float cross = SDFNavEditorUtil.Cross(ap, ab);
-                if (cross < 0)
-                    result.SDF = -Mathf.Sqrt(sqrMagnitude);
-                else
-                    result.SDF = Mathf.Sqrt(sqrMagnitude);
-                return result;
-            }
+            result.Distance = Mathf.Sqrt(sqrMagnitude);
+            return result;
         }
 
         public static void RemoveUnUsedVertice(EdgeData edgeData)
